@@ -4,19 +4,23 @@ async function request(url, options = {}) {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   })
-  let data = null
+  let body = null
   try {
-    data = await res.json()
+    body = await res.json()
   } catch {
-    // ignore empty body
+    // ignore
   }
   if (!res.ok) {
-    throw new Error(data?.message || 'حدث خطأ غير متوقع')
+    const err = new Error(body?.error?.message || body?.message || 'حدث خطأ غير متوقع')
+    err.code = body?.error?.code
+    throw err
   }
-  return data
+  return body?.data ?? body
 }
 
 export const api = {
   get: (url) => request(url),
   post: (url, body) => request(url, { method: 'POST', body: JSON.stringify(body ?? {}) }),
+  put: (url, body) => request(url, { method: 'PUT', body: JSON.stringify(body ?? {}) }),
+  delete: (url) => request(url, { method: 'DELETE' }),
 }

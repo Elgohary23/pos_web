@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import AdminRoute from './components/AdminRoute.jsx'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import Employees from './pages/Employees.jsx'
 
 function Home() {
   return (
@@ -19,6 +21,9 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Dashboard />}>
           <Route index element={<Home />} />
+          <Route element={<AdminRoute />}>
+            <Route path="employees" element={<Employees />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
