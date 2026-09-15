@@ -86,7 +86,7 @@ export default function SupplyInvoicePage() {
     }
     const isExisting = products.some((p) => p.name.toLowerCase() === name.toLowerCase())
     if (kind === 'supply' && !isExisting && retailNum === null) {
-      setError('(سعر البيع) مطلوب (للمنتج الجديد)')
+      setError('سعر البيع ( مطلوب للمنتج الجديد )')
       return
     }
     const qtyNum = qty === '' ? NaN : Number(qty)
