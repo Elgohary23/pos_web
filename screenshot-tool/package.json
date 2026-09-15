@@ -1,0 +1,11 @@
+﻿{
+  "name": "screenshot-tool",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "snapshot": "node take-screenshots.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.52.0"
+  }
+}
