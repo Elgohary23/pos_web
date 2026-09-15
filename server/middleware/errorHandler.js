@@ -18,6 +18,15 @@ export function errorHandler(err, req, res, next) {
       error: { code: err.code, message: err.message },
     })
   }
+  if (err?.name === 'MulterError') {
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? 'حجم الصورة يتجاوز الحد الأقصى (2MB)'
+      : 'خطأ في رفع الملف'
+    return res.status(400).json({
+      success: false,
+      error: { code: 'UPLOAD_ERROR', message },
+    })
+  }
   console.error(err)
   res.status(500).json({
     success: false,

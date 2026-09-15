@@ -1,7 +1,11 @@
 async function request(url, options = {}) {
+  const headers = {}
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
+  }
   const res = await fetch(url, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...options,
   })
   let body = null
@@ -23,4 +27,5 @@ export const api = {
   post: (url, body) => request(url, { method: 'POST', body: JSON.stringify(body ?? {}) }),
   put: (url, body) => request(url, { method: 'PUT', body: JSON.stringify(body ?? {}) }),
   delete: (url) => request(url, { method: 'DELETE' }),
+  upload: (url, method, formData) => request(url, { method, body: formData }),
 }

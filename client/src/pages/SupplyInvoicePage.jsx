@@ -14,6 +14,7 @@ export default function SupplyInvoicePage() {
 
   const [productName, setProductName] = useState('')
   const [unitCost, setUnitCost] = useState('')
+  const [retailPrice, setRetailPrice] = useState('')
   const [qty, setQty] = useState('1')
   const [categoryName, setCategoryName] = useState('')
 
@@ -75,7 +76,17 @@ export default function SupplyInvoicePage() {
     }
     const costNum = unitCost === '' ? NaN : Number(unitCost)
     if (!Number.isFinite(costNum) || costNum < 0) {
-      setError('تكلفة الوحدة يجب أن تكون رقمًا موجبًا')
+      setError('سعر التكلفة (جملة) يجب أن يكون رقمًا موجبًا')
+      return
+    }
+    const retailNum = retailPrice === '' ? null : Number(retailPrice)
+    if (retailNum !== null && (!Number.isFinite(retailNum) || retailNum < 0)) {
+      setError('سعر البيع يجب أن يكون رقمًا موجبًا')
+      return
+    }
+    const isExisting = products.some((p) => p.name.toLowerCase() === name.toLowerCase())
+    if (kind === 'supply' && !isExisting && retailNum === null) {
+      setError('سعر البيع مطلوب للمنتج الجديد')
       return
     }
     const qtyNum = qty === '' ? NaN : Number(qty)
@@ -84,17 +95,18 @@ export default function SupplyInvoicePage() {
       return
     }
 
-    setLines((prev) => [
-      ...prev,
-      {
-        name,
-        unit_cost: Math.round(costNum * 100) / 100,
-        quantity: qtyNum,
-        category_name: categoryName.trim() || undefined,
-      },
-    ])
+    const line = {
+      name,
+      unit_cost: Math.round(costNum * 100) / 100,
+      quantity: qtyNum,
+      category_name: categoryName.trim() || undefined,
+    }
+    if (retailNum !== null) line.retail_price = Math.round(retailNum * 100) / 100
+
+    setLines((prev) => [...prev, line])
     setProductName('')
     setUnitCost('')
+    setRetailPrice('')
     setQty('1')
     setCategoryName('')
   }
@@ -125,6 +137,7 @@ export default function SupplyInvoicePage() {
         items: lines.map((l) => ({
           name: l.name,
           unit_cost: l.unit_cost,
+          retail_price: l.retail_price ?? undefined,
           quantity: l.quantity,
           category_name: l.category_name || undefined,
         })),
@@ -215,8 +228,20 @@ export default function SupplyInvoicePage() {
               />
             </div>
             <div className="field-group">
-              <span className="field-label">تكلفة الوحدة</span>
+              <span className="field-label">سعر التكلفة (جملة)</span>
               <MoneyInput value={unitCost} onChange={setUnitCost} placeholder="0.00" />
+            </div>
+            <div className="field-group">
+              <span className="field-label">
+                سعر البيع
+                <span className="hint">
+                  {kind === 'supply' &&
+                    (products.some((p) => p.name.toLowerCase() === productName.trim().toLowerCase())
+                      ? 'اختياري'
+                      : 'مطلوب للمنتج الجديد')}
+                </span>
+              </span>
+              <MoneyInput value={retailPrice} onChange={setRetailPrice} placeholder="0.00" />
             </div>
             <div className="field-group">
               <span className="field-label">الكمية</span>

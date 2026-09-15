@@ -4,6 +4,9 @@ import AdminRoute from './components/AdminRoute.jsx'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Employees from './pages/Employees.jsx'
+import Categories from './pages/Categories.jsx'
+import Products from './pages/Products.jsx'
+import SupplyInvoicePage from './pages/SupplyInvoicePage.jsx'
 
 function Home() {
   return (
@@ -21,8 +24,11 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Dashboard />}>
           <Route index element={<Home />} />
+          <Route path="supply-invoice" element={<SupplyInvoicePage />} />
           <Route element={<AdminRoute />}>
             <Route path="employees" element={<Employees />} />
+            <Route path="categories" element={<Categories />} />
+            <Route path="products" element={<Products />} />
           </Route>
         </Route>
       </Route>

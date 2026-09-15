@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 import { runMigrations } from './migrations.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const dbPath = path.join(__dirname, '..', 'database.sqlite')
+const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'database.sqlite')
 
 const db = new Database(dbPath)
 

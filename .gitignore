@@ -5,3 +5,5 @@ dist/
 *.sqlite-shm
 .env
 *.log
+uploads/
+public/barcodes/

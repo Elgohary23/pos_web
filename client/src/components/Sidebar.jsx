@@ -11,10 +11,21 @@ export default function Sidebar() {
         <NavLink to="/" end className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
           الرئيسية
         </NavLink>
+        <NavLink to="/supply-invoice" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+          فاتورة توريد / مرتجع <span className="nav-shortcut">(F3)</span>
+        </NavLink>
         {user?.role === 'admin' && (
-          <NavLink to="/employees" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-            إدارة الموظفين
-          </NavLink>
+          <>
+            <NavLink to="/categories" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+              التصنيفات
+            </NavLink>
+            <NavLink to="/products" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+              المنتجات
+            </NavLink>
+            <NavLink to="/employees" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+              إدارة الموظفين
+            </NavLink>
+          </>
         )}
       </nav>
     </aside>

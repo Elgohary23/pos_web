@@ -5,13 +5,17 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "test:supply": "node tests/supply.test.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
+    "bwip-js": "^4.11.4",
     "connect-sqlite3": "^0.9.18",
+    "decimal.js": "^10.6.0",
     "express": "^5.2.1",
-    "express-session": "^1.19.0"
+    "express-session": "^1.19.0",
+    "multer": "^2.4.0"
   }
 }
