@@ -74,7 +74,7 @@ export default function Employees() {
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="data-table">
+          <table className="data-table data-table-cards">
             <thead>
               <tr>
                 <th>الاسم</th>
@@ -88,12 +88,12 @@ export default function Employees() {
             <tbody>
               {employees.map((u) => (
                 <tr key={u.id}>
-                  <td>{u.name}</td>
-                  <td>{u.username}</td>
-                  <td>{formatShift12(u.shiftStart)}</td>
-                  <td>{formatShift12(u.shiftEnd)}</td>
-                  <td>{u.createdAt}</td>
-                  <td className="row-actions">
+                  <td data-label="الاسم">{u.name}</td>
+                  <td data-label="اسم المستخدم">{u.username}</td>
+                  <td data-label="بداية الشيفت">{formatShift12(u.shiftStart)}</td>
+                  <td data-label="نهاية الشيفت">{formatShift12(u.shiftEnd)}</td>
+                  <td data-label="تاريخ الإنشاء">{u.createdAt}</td>
+                  <td data-label="إجراءات" className="row-actions">
                     <button className="btn-secondary" onClick={() => openEdit(u)}>
                       تعديل
                     </button>

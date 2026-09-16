@@ -1396,3 +1396,86 @@ input[type="file"] {
     white-space: normal;
   }
 }
+
+/* =====================================================
+   Responsive tables — rows become stacked cards
+   (Employees & Products pages)
+   ===================================================== */
+@media (max-width: 768px) {
+  .table-wrap.data-table-cards {
+    overflow: visible;
+    border: none;
+    background: transparent;
+  }
+
+  .data-table-cards thead {
+    display: none;
+  }
+
+  .data-table-cards,
+  .data-table-cards tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table-cards tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.25rem 0;
+  }
+
+  .data-table-cards tbody tr {
+    display: flex;
+    flex-direction: column;
+    padding: 0.4rem 0.25rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  }
+
+  .data-table-cards tbody tr:hover {
+    background: var(--panel);
+  }
+
+  .data-table-cards td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.9rem;
+    padding: 0.5rem 0.85rem;
+    border-bottom: 1px solid var(--border);
+    white-space: normal;
+  }
+
+  .data-table-cards tbody tr td:last-child {
+    border-bottom: none;
+  }
+
+  .data-table-cards td::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .data-table-cards .cell-with-img {
+    justify-content: flex-end;
+  }
+
+  /* Actions become a full-width button stack */
+  .data-table-cards td.row-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+    padding-top: 0.6rem;
+  }
+
+  .data-table-cards .row-actions .btn-secondary,
+  .data-table-cards .row-actions .btn-danger,
+  .data-table-cards .row-actions .btn-primary {
+    width: 100%;
+  }
+}

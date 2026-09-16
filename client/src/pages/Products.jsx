@@ -125,7 +125,7 @@ export default function Products() {
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="data-table">
+          <table className="data-table data-table-cards">
             <thead>
               <tr>
                 <th>المنتج</th>
@@ -140,18 +140,18 @@ export default function Products() {
             <tbody>
               {products.map((p) => (
                 <tr key={p.id}>
-                  <td>
+                  <td data-label="المنتج">
                     <span className="cell-with-img">
                       <img src={p.imageUrl || '/placeholder.png'} alt="" className="thumb-sm" />
                       {p.name}
                     </span>
                   </td>
-                  <td className="barcode-cell">{p.barcode}</td>
-                  <td>{p.categoryName || '—'}</td>
-                  <td>{p.quantity}</td>
-                  <td>{p.wholesalePrice}</td>
-                  <td>{p.retailPrice}</td>
-                  <td className="row-actions">
+                  <td data-label="الباركود" className="barcode-cell">{p.barcode}</td>
+                  <td data-label="التصنيف">{p.categoryName || '—'}</td>
+                  <td data-label="الكمية">{p.quantity}</td>
+                  <td data-label="سعر الجملة">{p.wholesalePrice}</td>
+                  <td data-label="سعر البيع">{p.retailPrice}</td>
+                  <td data-label="إجراءات" className="row-actions">
                     <button className="btn-secondary" onClick={() => openEdit(p)}>
                       تعديل
                     </button>
