@@ -95,15 +95,20 @@ export const SupplyService = {
 
       const itemRows = items.map((item) => {
         let product = ProductRepository.findByName(item.name)
+        let categoryName = item.category_name || null
+        let isNewProduct = false
 
         if (product) {
           if (!product.is_active) ProductRepository.reactivate(product.id)
-          const categoryName = item.category_name || null
           if (categoryName) {
             const cat = CategoryRepository.getOrCreate(categoryName)
             if (Number(product.category_id) !== Number(cat.id)) {
               ProductRepository.updateCategory(product.id, cat.id)
             }
+            categoryName = cat.name
+          } else {
+            const cat = CategoryRepository.findById(product.category_id)
+            categoryName = cat ? cat.name : DEFAULT_CATEGORY_NAME
           }
         } else {
           if (kind === 'return') {
@@ -113,9 +118,15 @@ export const SupplyService = {
             throw new ValidationError(`المنتج «${item.name}» جديد — سعر البيع مطلوب`)
           }
           const barcode = BarcodeService.generateCode()
-          const categoryId = item.category_name
-            ? CategoryRepository.getOrCreate(item.category_name).id
-            : getDefaultCategoryId()
+          let categoryId
+          if (item.category_name) {
+            const cat = CategoryRepository.getOrCreate(item.category_name)
+            categoryName = cat.name
+            categoryId = cat.id
+          } else {
+            categoryName = DEFAULT_CATEGORY_NAME
+            categoryId = getDefaultCategoryId()
+          }
           product = ProductRepository.createFromSupply({
             name: item.name,
             barcode,
@@ -124,6 +135,7 @@ export const SupplyService = {
             retailPrice: item.retail_price,
             categoryId,
           })
+          isNewProduct = true
           newProducts.push({ product_id: product.id, name: product.name, barcode: product.barcode })
         }
 
@@ -145,7 +157,22 @@ export const SupplyService = {
           total = minus(total, lineTotal)
         }
 
-        return { product_id: product.id, quantity: item.quantity, unit_cost: item.unit_cost, line_total: lineTotal }
+        const retailSnapshot =
+          item.retail_price !== null && item.retail_price !== undefined
+            ? item.retail_price
+            : Number(product.retail_price ?? 0)
+
+        return {
+          product_id: product.id,
+          quantity: item.quantity,
+          unit_cost: item.unit_cost,
+          line_total: lineTotal,
+          product_name: product.name,
+          category_name: categoryName,
+          retail_price: round2(retailSnapshot),
+          barcode: product.barcode || null,
+          is_new_product: isNewProduct ? 1 : 0,
+        }
       })
 
       total = plus(total, shippingCost)

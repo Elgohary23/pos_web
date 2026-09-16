@@ -10,6 +10,7 @@ import categoryRoutes from './routes/categoryRoutes.js'
 import productRoutes from './routes/productRoutes.js'
 import supplierRoutes from './routes/supplierRoutes.js'
 import supplyInvoiceRoutes from './routes/supplyInvoiceRoutes.js'
+import transactionRoutes from './routes/transactionRoutes.js'
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -54,6 +55,7 @@ app.use('/api/categories', categoryRoutes)
 app.use('/api/products', productRoutes)
 app.use('/api/suppliers', supplierRoutes)
 app.use('/api/supply-invoices', supplyInvoiceRoutes)
+app.use('/api/transactions', transactionRoutes)
 
 app.get('/', (req, res) => {
   res.send('نظام الكاشير - الخادم يعمل')

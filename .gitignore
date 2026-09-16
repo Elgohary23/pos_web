@@ -6,4 +6,4 @@ dist/
 .env
 *.log
 uploads/
-public/barcodes/
+server/public/barcodes/

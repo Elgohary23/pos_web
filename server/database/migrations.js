@@ -153,6 +153,49 @@ const migrations = [
       `)
     },
   },
+  {
+    id: 7,
+    name: 'add_invoice_item_snapshots',
+    up(db) {
+      const cols = db.prepare('PRAGMA table_info(supply_invoice_items)').all().map((c) => c.name)
+      if (!cols.includes('product_name')) {
+        db.exec(`ALTER TABLE supply_invoice_items ADD COLUMN product_name TEXT`)
+      }
+      if (!cols.includes('category_name')) {
+        db.exec(`ALTER TABLE supply_invoice_items ADD COLUMN category_name TEXT`)
+      }
+      if (!cols.includes('retail_price')) {
+        db.exec(`ALTER TABLE supply_invoice_items ADD COLUMN retail_price REAL`)
+      }
+      if (!cols.includes('barcode')) {
+        db.exec(`ALTER TABLE supply_invoice_items ADD COLUMN barcode TEXT`)
+      }
+      if (!cols.includes('is_new_product')) {
+        db.exec(`ALTER TABLE supply_invoice_items ADD COLUMN is_new_product INTEGER NOT NULL DEFAULT 0`)
+      }
+      db.exec(`
+        UPDATE supply_invoice_items
+        SET product_name = COALESCE(
+              (SELECT p.name FROM products p WHERE p.id = supply_invoice_items.product_id),
+              product_name
+            ),
+            category_name = COALESCE(
+              (SELECT c.name FROM products p JOIN categories c ON c.id = p.category_id WHERE p.id = supply_invoice_items.product_id),
+              category_name
+            ),
+            retail_price = COALESCE(
+              (SELECT p.retail_price FROM products p WHERE p.id = supply_invoice_items.product_id),
+              retail_price
+            ),
+            barcode = COALESCE(
+              (SELECT p.barcode FROM products p WHERE p.id = supply_invoice_items.product_id),
+              barcode
+            )
+        WHERE product_name IS NULL
+      `)
+      db.exec(`UPDATE supply_invoice_items SET product_name = 'منتج محذوف' WHERE product_name IS NULL OR product_name = ''`)
+    },
+  },
 ]
 
 export function runMigrations(db) {

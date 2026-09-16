@@ -7,7 +7,7 @@ POS (cashier) system. Two **independent npm packages** — no root `package.json
 
 ## Commands (run inside each package folder — there is no root script)
 - Client: `npm run dev` (Vite :5173), `npm run build`, `npm run preview`.
-- Server: `npm run dev` (uses `node --watch index.js`), `npm start` (:3000), `npm run test:supply` (runs `tests/supply.test.mjs` with a temp DB — safe, auto-cleans).
+- Server: `npm run dev` (uses `node --watch index.js`), `npm start` (:3000), `npm run test:supply` (runs `tests/supply.test.mjs` with a temp DB — safe, auto-cleans), `npm run test:transactions` (runs `tests/transactionLog.test.mjs` — same pattern).
 - **No lint/typecheck configs exist yet.** Scaffold one (ESLint) when a feature warrants it — never assume a script exists.
 - Windows gotcha: when spawning npm programmatically from PowerShell use `npm.cmd`, not `npm` (`Start-Process npm` fails). Repo root path contains Arabic characters — always `-LiteralPath` + quoted paths.
 
@@ -54,6 +54,8 @@ Layered structure:
 | `/api/products/*` | `requireAuth` (GET), `+requireAdmin` (POST/PUT/DELETE) + multer | image upload on create/update |
 | `/api/suppliers/*` | `requireAuth` | list only (GET) |
 | `/api/supply-invoices/*` | `requireAuth` + `requirePermission('CREATE_SUPPLY_INVOICE')` | both admin and employee; single POST endpoint, distinguished by `kind` field |
+| `/api/transactions` | `requireAuth` + `requireAdmin` | GET `?date=YYYY-MM-DD` → daily log pre-grouped for two views (shift + account), with out-of-hours classification |
+| `/api/transactions/:id` | `requireAuth` + `requireAdmin` | GET → full invoice details (header + snapshot items) |
 
 ### Supply/return invoice business rules
 - Single endpoint `POST /api/supply-invoices`. Body `kind`: `'supply'` or `'return'`.
@@ -63,12 +65,18 @@ Layered structure:
 - New suppliers auto-created (`SupplierRepository.getOrCreate`). New categories auto-created via `CategoryRepository.getOrCreate`.
 - Supplier and shipping_cost are optional. All rows in a single DB transaction.
 - Audit log: `SUPPLY_SUPPLY` or `SUPPLY_RETURN` entry per invoice.
+- Each line item also stores a **historical snapshot** (migration 7): `product_name`, `category_name`, `retail_price`, `barcode`, `is_new_product` — captured at creation time so the log stays truthful even if the product is later renamed/re-priced/re-categorized.
+
+### Transaction log rules (`transactionLogService.js` + `transactionLogRepository.js`)
+- Daily view: `GET /api/transactions?date=YYYY-MM-DD` returns one pre-built object: `summary`, `shift_view.{groups,no_shift,out_of_hours}`, `account_view`. No client-side grouping.
+- Shift classification per invoice: extract `HH:MM` from `created_at`, compare against the creator's `shift_start`/`shift_end` (inclusive range; `end < start` = overnight wrap, e.g. 22:00→06:00). A user with **no registered shift is always "inside"** and lands in the `no_shift` block of the shift view (not out-of-hours).
+- Shift view groups in-hours invoices by the maker's shift window (`shift_start~shift_end`); out-of-hours invoices go to the catch-all block rendered last. Invoice totals are `REAL`; group/summary subtotals are summed server-side with `money.js`.
 
 ## Frontend architecture
 - Keep existing `components/` `pages/` `context/`; add `hooks/`, `services/` as features grow.
 - Every feature = loading + success + error + empty states.
 - Dashboard is the logged-in layout (Navbar: user+change password+logout, Sidebar, `<Outlet/>`). Add pages as **nested routes** under it in `client/src/App.jsx`.
-- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice is accessible to all roles; employees/categories/products are admin-only.
+- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice is accessible to all roles; employees/categories/products/transactions are admin-only.
 
 ### Frontend route map (`App.jsx`)
 | Path | Guard | Component |
@@ -79,6 +87,8 @@ Layered structure:
 | `/employees` | ProtectedRoute + AdminRoute | Employees |
 | `/categories` | ProtectedRoute + AdminRoute | Categories |
 | `/products` | ProtectedRoute + AdminRoute | Products |
+| `/transactions` | ProtectedRoute + AdminRoute | TransactionLog (daily log, `?date=YYYY-MM-DD`, shift/account toggle) |
+| `/transactions/:id` | ProtectedRoute + AdminRoute | InvoiceDetail (full invoice + snapshot items) |
 
 ## Responsive UI (must-follow)
 **Never finish a UI page/view/component without confirming it is responsive.** The product ships on phones/tablets too; a page that crops on mobile is a bug, not a TODO.
@@ -107,9 +117,10 @@ Standalone Playwright tooling (own `package.json`, chromium installed). Requires
 - Images go to the OS Downloads dir — never committed. Playwright browsers live in `ms-playwright` cache (outside repo).
 
 ## Testing
-- Only one test suite exists: `server/tests/supply.test.mjs` — run via `npm run test:supply` from `server/`.
-- Self-contained: creates a temp DB in `os.tmpdir()`, runs all migrations, cleans up DB + generated barcode PNGs on exit. Safe to run anytime.
-- Tests supply creation, direct price overwrite, return with insufficient stock, service return rejection, empty items, float precision, permission denied audit logging.
+- Two test suites (run from `server/`):
+  - `server/tests/supply.test.mjs` → `npm run test:supply` — supply/return creation, price overwrite, insufficient stock, audit, validation.
+  - `server/tests/transactionLog.test.mjs` → `npm run test:transactions` — snapshot capture, daily shift/out-of-hours grouping (incl. overnight shifts), account view, invoice details, date/id validation.
+- Both are self-contained: create a temp DB in `os.tmpdir()`, run all migrations, clean up DB + generated barcode PNGs on exit. Safe to run anytime.
 - To add a new test file: follow the same pattern (set `process.env.DB_PATH` to a temp path before importing `db.js`, clean up at end).
 
 ## Git / GitHub

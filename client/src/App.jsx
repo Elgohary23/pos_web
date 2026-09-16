@@ -7,6 +7,8 @@ import Employees from './pages/Employees.jsx'
 import Categories from './pages/Categories.jsx'
 import Products from './pages/Products.jsx'
 import SupplyInvoicePage from './pages/SupplyInvoicePage.jsx'
+import TransactionLog from './pages/TransactionLog.jsx'
+import InvoiceDetail from './pages/InvoiceDetail.jsx'
 
 function Home() {
   return (
@@ -29,6 +31,8 @@ export default function App() {
             <Route path="employees" element={<Employees />} />
             <Route path="categories" element={<Categories />} />
             <Route path="products" element={<Products />} />
+            <Route path="transactions" element={<TransactionLog />} />
+            <Route path="transactions/:id" element={<InvoiceDetail />} />
           </Route>
         </Route>
       </Route>
