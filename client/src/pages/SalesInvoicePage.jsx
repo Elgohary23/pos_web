@@ -129,6 +129,7 @@ export default function SalesInvoicePage() {
   const totalAfterDiscount = subtotal - discountValue
   const paid = paidAmount === '' ? 0 : Number(paidAmount) || 0
   const remaining = totalAfterDiscount - paid
+  const restrictDiscount = isEmployee && discountType !== 'none' && discountValue > (subtotal * 2) / 100
 
   const toggleSelect = (index) => {
     setSelected((prev) => {
@@ -204,7 +205,7 @@ export default function SalesInvoicePage() {
       setError('قيمة الخصم أكبر من إجمالي الفاتورة')
       return
     }
-    if (isEmployee && (discountType === 'variable' || discountType === 'fixed')) {
+    if (restrictDiscount) {
       if (!customerName.trim()) {
         setError('يجب إدخال اسم العميل عند تطبيق خصم')
         return
@@ -293,7 +294,7 @@ export default function SalesInvoicePage() {
 
           <div className="field-group">
             <span className="field-label">
-              اسم العميل {isEmployee && (discountType === 'variable' || discountType === 'fixed') ? <span className="hint required">مطلوب للخصم</span> : <span className="hint">(اختياري — يمكن كتابة اسم جديد)</span>}
+              اسم العميل {restrictDiscount ? <span className="hint required">مطلوب للخصم</span> : <span className="hint">(اختياري — يمكن كتابة اسم جديد)</span>}
             </span>
             <div className="autocomplete-wrap">
               <input
@@ -501,7 +502,7 @@ export default function SalesInvoicePage() {
 
       <div className="field-group invoice-notes">
         <span className="field-label">
-          ملاحظات {isEmployee && (discountType === 'variable' || discountType === 'fixed') ? <span className="hint required">مطلوبة للخصم</span> : ''}
+          ملاحظات {restrictDiscount ? <span className="hint required">مطلوبة للخصم</span> : ''}
         </span>
         <textarea className="notes-textarea" rows={2} value={notes}
           onChange={(e) => setNotes(e.target.value)}

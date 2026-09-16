@@ -84,19 +84,6 @@ export const SalesInvoiceService = {
       throw new ValidationError('لا يُسمح للموظف بإنشاء فاتورة مجانية')
     }
 
-    const customerName = dto?.customer_name ? String(dto.customer_name).trim() : ''
-    const customerPhone = dto?.customer_phone ? String(dto.customer_phone).trim() : null
-    const notes = dto?.notes ? String(dto.notes).trim() : null
-
-    if (userRole === 'employee' && (discountType === 'variable' || discountType === 'fixed')) {
-      if (!customerName) {
-        throw new ValidationError('يجب إدخال اسم العميل عند تطبيق خصم')
-      }
-      if (!notes) {
-        throw new ValidationError('يجب إدخال ملاحظات إضافية عند تطبيق خصم')
-      }
-    }
-
     let discountPercent = round2(Number(dto?.discount_percent) || 0)
     if (discountType === 'free') {
       discountPercent = 100
@@ -131,6 +118,20 @@ export const SalesInvoiceService = {
     }
     const totalAfterDiscount = round2(minus(totalBeforeDiscount.toNumber(), discountValue).toNumber())
     const remainingAmount = round2(minus(totalAfterDiscount, paidAmountNumber).toNumber())
+
+    const customerName = dto?.customer_name ? String(dto.customer_name).trim() : ''
+    const customerPhone = dto?.customer_phone ? String(dto.customer_phone).trim() : null
+    const notes = dto?.notes ? String(dto.notes).trim() : null
+
+    const twoPercentThreshold = times(totalBeforeDiscount.toNumber(), 2).div(100).toNumber()
+    if (userRole === 'employee' && discountType !== 'none' && discountValue > twoPercentThreshold) {
+      if (!customerName) {
+        throw new ValidationError('يجب إدخال اسم العميل عند تطبيق خصم')
+      }
+      if (!notes) {
+        throw new ValidationError('يجب إدخال ملاحظات إضافية عند تطبيق خصم')
+      }
+    }
 
     if (paidAmountNumber > totalAfterDiscount) {
       throw new ValidationError('المبلغ المدفوع أكبر من إجمالي الفاتورة')

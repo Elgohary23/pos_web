@@ -80,7 +80,7 @@ Layered structure:
 ### Sales invoice business rules (`salesInvoiceService.js`)
 - Single endpoint `POST /api/sales-invoices`. `invoice_type`: `product_sale` | `service_sale` | `reservation`.
 - `discount_type`: `none` | `variable` | `free` (percent of the pre-discount total) | `fixed` (fixed EGP value). `predefined` exists in the DB CHECK but is not implemented yet.
-- **Employee restriction**: when `req.session.userRole === 'employee'` and `discount_type` is `variable` OR `fixed`, both `customer_name` and `notes` are REQUIRED — enforced server-side, no admin bypass.
+- **Employee restriction**: when `req.session.userRole === 'employee'` and the computed discount value (percent or fixed, if `discount_type !== 'none'`) exceeds **2% of `total_before_discount`**, both `customer_name` and `notes` are REQUIRED — enforced server-side, no admin bypass. Discounts ≤ 2% need neither.
 - `paid_amount` defaults to 0 when omitted; rejected with `VALIDATION_ERROR` if it exceeds `total_after_discount` (so `remaining_amount ≥ 0`).
 - Stock: each non-service item decreases `products.quantity`; insufficient stock throws `INSUFFICIENT_STOCK` inside the transaction (full rollback). `is_service` items never touch stock.
 - Each line stores a **price snapshot**: `original_price` (retail at sale time), `unit_price` (may be overridden), `cost_price_at_sale`, plus `product_name`/`category_name`/`barcode`.

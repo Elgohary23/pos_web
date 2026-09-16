@@ -147,13 +147,13 @@ ok('المخزون لم يتغير', Number(ProductRepository.findById(book.id).
 
 // ---------- Scenario 8: employee variable discount requires name + notes ----------
 console.log('\nScenario 8: قيد الموظف على الخصم المتغير')
-expectError(async () => SalesInvoiceService.createSaleInvoice({
+await expectError(async () => SalesInvoiceService.createSaleInvoice({
   invoice_type: 'product_sale',
   discount_type: 'variable',
   discount_percent: 5,
   items: [{ product_id: pen.id, quantity: 1 }],
 }, employee), 'VALIDATION_ERROR', 'موظف بخصم متغير بدون اسم عميل')
-expectError(async () => SalesInvoiceService.createSaleInvoice({
+await expectError(async () => SalesInvoiceService.createSaleInvoice({
   invoice_type: 'product_sale',
   customer_name: 'عميل',
   discount_type: 'variable',
@@ -177,6 +177,17 @@ ok('موظف بدون خصم متغير لا يحتاج اسم/ملاحظات', 
   try {
     SalesInvoiceService.createSaleInvoice({
       invoice_type: 'product_sale',
+      items: [{ product_id: pen.id, quantity: 1 }],
+    }, employee)
+    return true
+  } catch { return false }
+})())
+ok('موظف بخصم نسبة ≤2% لا يحتاج اسم/ملاحظات', (() => {
+  try {
+    SalesInvoiceService.createSaleInvoice({
+      invoice_type: 'product_sale',
+      discount_type: 'variable',
+      discount_percent: 1,
       items: [{ product_id: pen.id, quantity: 1 }],
     }, employee)
     return true
@@ -242,6 +253,17 @@ const res9cEmp = SalesInvoiceService.createSaleInvoice({
 }, employee)
 ok('موظف يستخدم خصم قيمة بالاسم والملاحظات', res9cEmp.discount_value === 2)
 ok('إجمالي بعد الخصم = 5', res9cEmp.total_after_discount === 5)
+ok('موظف بخصم قيمة ≤2% لا يحتاج اسم/ملاحظات', (() => {
+  try {
+    SalesInvoiceService.createSaleInvoice({
+      invoice_type: 'product_sale',
+      discount_type: 'fixed',
+      discount_value: 0.1,
+      items: [{ product_id: pen.id, quantity: 1 }],
+    }, employee)
+    return true
+  } catch { return false }
+})())
 
 // ---------- Scenario 9d: fixed discount exceeds total ----------
 console.log('\nScenario 9d: قيمة خصم أكبر من الإجمالي')
