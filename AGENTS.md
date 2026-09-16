@@ -80,6 +80,32 @@ Layered structure:
 | `/categories` | ProtectedRoute + AdminRoute | Categories |
 | `/products` | ProtectedRoute + AdminRoute | Products |
 
+## Responsive UI (must-follow)
+**Never finish a UI page/view/component without confirming it is responsive.** The product ships on phones/tablets too; a page that crops on mobile is a bug, not a TODO.
+
+- ALL styles live in one file: `client/src/App.css` (no CSS modules, no per-component CSS). Add to it. RTL (`dir="rtl"`); keep RTL-aware (`margin-inline-start/end`, never hard `left/right` where it flips).
+- Breakpoints (defined at the bottom of `App.css` — reuse them, add new ones beside, never reinvent):
+  - `≤1024px`: tablet tweaks (narrower `.cat-layout` tree 240px, navbar gap).
+  - `≤900px`: `.invoice-grid` collapses to one column.
+  - `≤768px`: real layout collapse — `.dashboard-body` → column, sidebar becomes a horizontal scrollable nav (`.sidebar-nav` `flex-direction: row`), all grids `.form-grid`/`.cat-layout`/`.shift-row`/`.filter-row` → 1 column, modals `.modal-box` get `max-height: 92vh; overflow-y: auto`, content padding shrinks.
+  - `≤480px`: phone refinements — navbar simplifies (`.navbar-user` hidden), modals near-fullscreen, `.kind-radio-row` full-width column, barcode images fluid, `.child-cards` 1fr.
+- **Wide admin tables: use stacked cards, not horizontal page scroll.** Every big-data table (Employees, Products) uses `className="data-table data-table-cards"` + a `data-label="..."` on **every** `<td>`. At `≤768px` rows become cards: label + value rows with full-width action buttons. A new wide table MUST copy this pattern (`data-label` is mandatory; without it cells render blank on mobile). `.table-wrap { overflow-x: auto }` is acceptable only for narrow inline tables (e.g. invoice `LinesTable`); whole-page horizontal overflow is a defect.
+- Best practices to keep in view while changing layout:
+  - Fixed-pixel containers must shrink: `width:100%; max-width:Npx` (see `.login-card`, `.modal-box`) — never `width: Npx` alone.
+  - Grid/flex children may need `min-width: 0` so inputs/selects can compress.
+  - Grouped controls (radios, button groups) collapse to a full-width column on phones.
+  - Effortless collapse = CSS media queries only; no JS hamburger/drawer pattern is used in this repo.
+  - On viewport resize the document must never scroll horizontally (`scrollWidth <= clientWidth`).
+
+## Screenshot & responsiveness verification (`screenshot-tool/`)
+Standalone Playwright tooling (own `package.json`, chromium installed). Requires **both** servers running first: server `npm start` (:3000) then client `npm run dev` (:5173). All scripts auto-login with `admin/admin` and set `localStorage['skipPwChangeDialog']=1` (the app's own dialog-suppression flag — do not change the DB password to dodge it).
+
+- `node take-screenshots.mjs` (or `npm run snapshot`) → 18 screenshots (6 pages × mobile/tablet/desktop) into `~/Downloads/screenshots/<timestamp>/`. Timestamped folder + `<name>-<viewport>-<W>x<H>.png` filenames mean runs never overwrite.
+- `node check-responsive.mjs` → 30 overflow checks (5 viewports × 6 pages); **exits 1 if any page overflows horizontally**. Run after ANY UI change.
+- `node check-modals.mjs` → verifies every modal fits inside the 375px viewport.
+- `node check-table-cards.mjs` → verifies `.data-table-cards` actually renders (header hidden, labels shown, full-width buttons).
+- Images go to the OS Downloads dir — never committed. Playwright browsers live in `ms-playwright` cache (outside repo).
+
 ## Testing
 - Only one test suite exists: `server/tests/supply.test.mjs` — run via `npm run test:supply` from `server/`.
 - Self-contained: creates a temp DB in `os.tmpdir()`, runs all migrations, cleans up DB + generated barcode PNGs on exit. Safe to run anytime.
@@ -93,4 +119,4 @@ Layered structure:
 
 ## Workflow
 Every request: analyze → plan → identify impacted files → implement → test → fix failures → lint/typecheck → refactor → verify feature manually. Report with: ✅ Summary, ✅ Files Modified, ✅ Tests Added, ✅ Tests Executed, ✅ Potential Risks, ✅ Suggested Improvements.
-**Never claim something works (or tests pass) unless you actually ran it.**
+**Never claim something works (or tests pass) unless you actually ran it.** Any UI change: run `node check-responsive.mjs` (plus `check-modals.mjs` / `check-table-cards.mjs` when modals or data tables are involved) before reporting done.
