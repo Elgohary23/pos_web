@@ -196,6 +196,58 @@ const migrations = [
       db.exec(`UPDATE supply_invoice_items SET product_name = 'منتج محذوف' WHERE product_name IS NULL OR product_name = ''`)
     },
   },
+  {
+    id: 8,
+    name: 'create_sales_invoices_and_customers',
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS customers (
+          customer_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          phone TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        CREATE TABLE IF NOT EXISTS sales_invoices (
+          invoice_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          invoice_type TEXT NOT NULL CHECK (invoice_type IN ('product_sale','service_sale','reservation')),
+          customer_id INTEGER REFERENCES customers(customer_id),
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          total_before_discount REAL NOT NULL DEFAULT 0,
+          discount_type TEXT NOT NULL DEFAULT 'none' CHECK (discount_type IN ('none','predefined','variable','free')),
+          discount_percent REAL NOT NULL DEFAULT 0,
+          discount_value REAL NOT NULL DEFAULT 0,
+          total_after_discount REAL NOT NULL DEFAULT 0,
+          paid_amount REAL NOT NULL DEFAULT 0,
+          remaining_amount REAL NOT NULL DEFAULT 0,
+          status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed','reserved','delivered','cancelled')),
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        CREATE TABLE IF NOT EXISTS sales_invoice_items (
+          item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          invoice_id INTEGER NOT NULL REFERENCES sales_invoices(invoice_id) ON DELETE CASCADE,
+          product_id INTEGER NOT NULL REFERENCES products(id),
+          quantity INTEGER NOT NULL CHECK (quantity > 0),
+          original_price REAL NOT NULL,
+          unit_price REAL NOT NULL,
+          cost_price_at_sale REAL NOT NULL DEFAULT 0,
+          line_total REAL NOT NULL,
+          product_name TEXT,
+          category_name TEXT,
+          barcode TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sales_date ON sales_invoices(created_at);
+        CREATE INDEX IF NOT EXISTS idx_sales_user ON sales_invoices(user_id);
+        CREATE INDEX IF NOT EXISTS idx_sales_cust ON sales_invoices(customer_id);
+        CREATE INDEX IF NOT EXISTS idx_sitems_inv ON sales_invoice_items(invoice_id);
+        CREATE INDEX IF NOT EXISTS idx_sitems_product ON sales_invoice_items(product_id);
+      `)
+    },
+  },
 ]
 
 export function runMigrations(db) {

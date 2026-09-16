@@ -7,6 +7,7 @@ import Employees from './pages/Employees.jsx'
 import Categories from './pages/Categories.jsx'
 import Products from './pages/Products.jsx'
 import SupplyInvoicePage from './pages/SupplyInvoicePage.jsx'
+import SalesInvoicePage from './pages/SalesInvoicePage.jsx'
 import TransactionLog from './pages/TransactionLog.jsx'
 import InvoiceDetail from './pages/InvoiceDetail.jsx'
 
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />}>
           <Route index element={<Home />} />
           <Route path="supply-invoice" element={<SupplyInvoicePage />} />
+          <Route path="sales-invoice" element={<SalesInvoicePage />} />
           <Route element={<AdminRoute />}>
             <Route path="employees" element={<Employees />} />
             <Route path="categories" element={<Categories />} />

@@ -11,6 +11,7 @@ export const AuthController = {
     const user = AuthService.login(req.body?.username, req.body?.password)
     req.session.userId = user.id
     req.session.username = user.username
+    req.session.userRole = user.role
     res.json({ success: true, data: { user: publicUser(user) }, message: 'تم تسجيل الدخول بنجاح' })
   },
 

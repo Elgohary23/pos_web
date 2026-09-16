@@ -54,8 +54,11 @@ Layered structure:
 | `/api/products/*` | `requireAuth` (GET), `+requireAdmin` (POST/PUT/DELETE) + multer | image upload on create/update |
 | `/api/suppliers/*` | `requireAuth` | list only (GET) |
 | `/api/supply-invoices/*` | `requireAuth` + `requirePermission('CREATE_SUPPLY_INVOICE')` | both admin and employee; single POST endpoint, distinguished by `kind` field |
+| `/api/customers` | `requireAuth` | GET only — list/search for the sales-invoice autocomplete |
+| `/api/sales-invoices` | `requireAuth` + `requirePermission('CREATE_SALE_INVOICE')` | GET list for search; POST create (admin or employee) |
+| `/api/sales-invoices/:id` | `requireAuth` + `requireAdmin` | GET full sale details (header + line items incl. cost snapshot) |
 | `/api/transactions` | `requireAuth` + `requireAdmin` | GET `?date=YYYY-MM-DD` → daily log pre-grouped for two views (shift + account), with out-of-hours classification |
-| `/api/transactions/:id` | `requireAuth` + `requireAdmin` | GET → full invoice details (header + snapshot items) |
+| `/api/transactions/:id` | `requireAuth` + `requireAdmin` | GET → full invoice details (header + snapshot items), resolves both supply and sale invoices |
 
 ### Supply/return invoice business rules
 - Single endpoint `POST /api/supply-invoices`. Body `kind`: `'supply'` or `'return'`.
@@ -68,15 +71,27 @@ Layered structure:
 - Each line item also stores a **historical snapshot** (migration 7): `product_name`, `category_name`, `retail_price`, `barcode`, `is_new_product` — captured at creation time so the log stays truthful even if the product is later renamed/re-priced/re-categorized.
 
 ### Transaction log rules (`transactionLogService.js` + `transactionLogRepository.js`)
-- Daily view: `GET /api/transactions?date=YYYY-MM-DD` returns one pre-built object: `summary`, `shift_view.{groups,no_shift,out_of_hours}`, `account_view`. No client-side grouping.
+- Daily view: `GET /api/transactions?date=YYYY-MM-DD` returns one pre-built object: `summary`, `shift_view.{groups,no_shift,out_of_hours}`, `account_view`, plus top-level `shift_aggregate`. No client-side grouping.
+- **3 invoice kinds** unified by a CTE over `supply_invoices` (supply/return) UNION ALL `sales_invoices` (sale). Sales surface `total_amount = paid_amount`.
 - Shift classification per invoice: extract `HH:MM` from `created_at`, compare against the creator's `shift_start`/`shift_end` (inclusive range; `end < start` = overnight wrap, e.g. 22:00→06:00). A user with **no registered shift is always "inside"** and lands in the `no_shift` block of the shift view (not out-of-hours).
 - Shift view groups in-hours invoices by the maker's shift window (`shift_start~shift_end`); out-of-hours invoices go to the catch-all block rendered last. Invoice totals are `REAL`; group/summary subtotals are summed server-side with `money.js`.
+- **Cash/pay aggregation**: sale invoices count as `+paid_amount`; supply/return count as `−|total|`. Each shift group, the no_shift/out_of_hours blocks, `summary.aggregate`, and `shift_aggregate` carry this rolling money figure (shown in the UI as «تجميع»).
+
+### Sales invoice business rules (`salesInvoiceService.js`)
+- Single endpoint `POST /api/sales-invoices`. `invoice_type`: `product_sale` | `service_sale` | `reservation`.
+- `discount_type`: `none` | `variable` | `free` (percent of the pre-discount total). `predefined` exists in the DB CHECK but is not implemented yet.
+- **Employee restriction**: when `req.session.userRole === 'employee'` and `discount_type === 'variable'`, both `customer_name` and `notes` are REQUIRED — enforced server-side, no admin bypass.
+- `paid_amount` defaults to 0 when omitted; rejected with `VALIDATION_ERROR` if it exceeds `total_after_discount` (so `remaining_amount ≥ 0`).
+- Stock: each non-service item decreases `products.quantity`; insufficient stock throws `INSUFFICIENT_STOCK` inside the transaction (full rollback). `is_service` items never touch stock.
+- Each line stores a **price snapshot**: `original_price` (retail at sale time), `unit_price` (may be overridden), `cost_price_at_sale`, plus `product_name`/`category_name`/`barcode`.
+- Customer auto-created / reused by name (`CustomerRepository.getOrCreate`); `GET /api/customers` feeds the autocomplete.
+- One DB transaction; audit log entry `SALE_INVOICE`.
 
 ## Frontend architecture
 - Keep existing `components/` `pages/` `context/`; add `hooks/`, `services/` as features grow.
 - Every feature = loading + success + error + empty states.
 - Dashboard is the logged-in layout (Navbar: user+change password+logout, Sidebar, `<Outlet/>`). Add pages as **nested routes** under it in `client/src/App.jsx`.
-- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice is accessible to all roles; employees/categories/products/transactions are admin-only.
+- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice and sales-invoice are accessible to all roles; employees/categories/products/transactions are admin-only.
 
 ### Frontend route map (`App.jsx`)
 | Path | Guard | Component |
@@ -84,11 +99,12 @@ Layered structure:
 | `/login` | none | Login |
 | `/` | ProtectedRoute | Dashboard → Home |
 | `/supply-invoice` | ProtectedRoute | SupplyInvoicePage |
+| `/sales-invoice` | ProtectedRoute | SalesInvoicePage |
 | `/employees` | ProtectedRoute + AdminRoute | Employees |
 | `/categories` | ProtectedRoute + AdminRoute | Categories |
 | `/products` | ProtectedRoute + AdminRoute | Products |
 | `/transactions` | ProtectedRoute + AdminRoute | TransactionLog (daily log, `?date=YYYY-MM-DD`, shift/account toggle) |
-| `/transactions/:id` | ProtectedRoute + AdminRoute | InvoiceDetail (full invoice + snapshot items) |
+| `/transactions/:id` | ProtectedRoute + AdminRoute | InvoiceDetail (full invoice + snapshot items, supply or sale) |
 
 ## Responsive UI (must-follow)
 **Never finish a UI page/view/component without confirming it is responsive.** The product ships on phones/tablets too; a page that crops on mobile is a bug, not a TODO.
@@ -110,17 +126,18 @@ Layered structure:
 ## Screenshot & responsiveness verification (`screenshot-tool/`)
 Standalone Playwright tooling (own `package.json`, chromium installed). Requires **both** servers running first: server `npm start` (:3000) then client `npm run dev` (:5173). All scripts auto-login with `admin/admin` and set `localStorage['skipPwChangeDialog']=1` (the app's own dialog-suppression flag — do not change the DB password to dodge it).
 
-- `node take-screenshots.mjs` (or `npm run snapshot`) → 18 screenshots (6 pages × mobile/tablet/desktop) into `~/Downloads/screenshots/<timestamp>/`. Timestamped folder + `<name>-<viewport>-<W>x<H>.png` filenames mean runs never overwrite.
-- `node check-responsive.mjs` → 30 overflow checks (5 viewports × 6 pages); **exits 1 if any page overflows horizontally**. Run after ANY UI change.
+- `node take-screenshots.mjs` (or `npm run snapshot`) → 21 screenshots (7 pages × mobile/tablet/desktop) into `~/Downloads/screenshots/<timestamp>/`. Timestamped folder + `<name>-<viewport>-<W>x<H>.png` filenames mean runs never overwrite.
+- `node check-responsive.mjs` → 35 overflow checks (5 viewports × 7 pages); **exits 1 if any page overflows horizontally**. Run after ANY UI change.
 - `node check-modals.mjs` → verifies every modal fits inside the 375px viewport.
 - `node check-table-cards.mjs` → verifies `.data-table-cards` actually renders (header hidden, labels shown, full-width buttons).
 - Images go to the OS Downloads dir — never committed. Playwright browsers live in `ms-playwright` cache (outside repo).
 
 ## Testing
-- Two test suites (run from `server/`):
+- Three test suites (run from `server/`):
   - `server/tests/supply.test.mjs` → `npm run test:supply` — supply/return creation, price overwrite, insufficient stock, audit, validation.
   - `server/tests/transactionLog.test.mjs` → `npm run test:transactions` — snapshot capture, daily shift/out-of-hours grouping (incl. overnight shifts), account view, invoice details, date/id validation.
-- Both are self-contained: create a temp DB in `os.tmpdir()`, run all migrations, clean up DB + generated barcode PNGs on exit. Safe to run anytime.
+  - `server/tests/salesInvoice.test.mjs` → `npm run test:sales` — sale totals/discounts, price snapshot, stock decrease (+ service no-deduct), insufficient-stock rollback, employee variable-discount restriction, free invoice, cash sale, customer get_or_create, transaction-log integration, sale detail view.
+- All three are self-contained: create a temp DB in `os.tmpdir()`, run all migrations, clean up DB + generated barcode PNGs on exit. Safe to run anytime.
 - To add a new test file: follow the same pattern (set `process.env.DB_PATH` to a temp path before importing `db.js`, clean up at end).
 
 ## Git / GitHub

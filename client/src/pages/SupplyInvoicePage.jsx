@@ -233,12 +233,12 @@ export default function SupplyInvoicePage() {
             </div>
             <div className="field-group">
               <span className="field-label">
-                سعر البيع
+               سعر البيع 
                 <span className="hint">
                   {kind === 'supply' &&
                     (products.some((p) => p.name.toLowerCase() === productName.trim().toLowerCase())
                       ? 'اختياري'
-                      : 'مطلوب (للمنتج الجديد)')}
+                      : 'مطلوب للمنتج الجديد')}
                 </span>
               </span>
               <MoneyInput value={retailPrice} onChange={setRetailPrice} placeholder="0.00" />

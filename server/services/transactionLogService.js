@@ -46,7 +46,18 @@ function mapInvoiceRow(row) {
     shift_start: row.shift_start || null,
     shift_end: row.shift_end || null,
     in_shift: isTimeInShift(time, row.shift_start, row.shift_end),
+    customer_name: row.customer_name || null,
+    invoice_type: row.invoice_type || null,
+    status: row.status || null,
+    is_sale: Boolean(row.is_sale),
   }
+}
+
+function invoiceContribution(inv) {
+  if (inv.kind === 'sale') {
+    return money(inv.total)
+  }
+  return minus(0, Math.abs(inv.total).toFixed(2))
 }
 
 export const TransactionLogService = {
@@ -60,25 +71,37 @@ export const TransactionLogService = {
 
     let supplyTotal = money(0)
     let returnTotal = money(0)
+    let saleTotal = money(0)
     let supplyCount = 0
     let returnCount = 0
+    let saleCount = 0
+    let aggregate = money(0)
     for (const inv of invoices) {
-      if (inv.kind === 'return') {
+      if (inv.kind === 'sale') {
+        saleTotal = plus(saleTotal, inv.total)
+        saleCount += 1
+        aggregate = plus(aggregate, inv.total)
+      } else if (inv.kind === 'return') {
         returnTotal = plus(returnTotal, inv.total)
         returnCount += 1
+        aggregate = minus(aggregate, Math.abs(inv.total).toFixed(2))
       } else {
         supplyTotal = plus(supplyTotal, inv.total)
         supplyCount += 1
+        aggregate = minus(aggregate, Math.abs(inv.total).toFixed(2))
       }
     }
-    const net = round2(plus(supplyTotal, returnTotal).toNumber())
+    const net = round2(plus(supplyTotal, plus(returnTotal, saleTotal)).toNumber())
     const summary = {
       count: invoices.length,
+      sale_count: saleCount,
       supply_count: supplyCount,
       return_count: returnCount,
+      sale_total: round2(saleTotal.toNumber()),
       supply_total: round2(supplyTotal.toNumber()),
       return_total: round2(returnTotal.toNumber()),
       net,
+      aggregate: round2(aggregate.toNumber()),
     }
 
     // ---- view 1: by shift (with out-of-hours catch-all) ----
@@ -98,12 +121,19 @@ export const TransactionLogService = {
               users: new Map(),
               invoices: [],
               subtotal: money(0),
+              sales: money(0),
+              spend: money(0),
             })
           }
           const group = groupMap.get(key)
           group.invoices.push(inv)
           group.users.set(inv.user_id, `${inv.user_name} (${inv.username})`)
           group.subtotal = plus(group.subtotal, inv.total)
+          if (inv.kind === 'sale') {
+            group.sales = plus(group.sales, inv.total)
+          } else {
+            group.spend = plus(group.spend, Math.abs(inv.total).toFixed(2))
+          }
         } else {
           noShift.push(inv)
         }
@@ -113,23 +143,45 @@ export const TransactionLogService = {
     }
 
     const groups = [...groupMap.values()]
-      .map((g) => ({
-        key: g.key,
-        shift_start: g.shift_start,
-        shift_end: g.shift_end,
-        users: [...g.users.values()],
-        invoices: g.invoices,
-        subtotal: round2(g.subtotal.toNumber()),
-      }))
+      .map((g) => {
+        const aggregate = round2(minus(g.sales.toNumber(), g.spend.toNumber()).toNumber())
+        return {
+          key: g.key,
+          shift_start: g.shift_start,
+          shift_end: g.shift_end,
+          users: [...g.users.values()],
+          invoices: g.invoices,
+          subtotal: round2(g.subtotal.toNumber()),
+          sales_total: round2(g.sales.toNumber()),
+          spend_total: round2(g.spend.toNumber()),
+          aggregate,
+        }
+      })
       .sort((a, b) => (a.shift_start < b.shift_start ? -1 : a.shift_start > b.shift_start ? 1 : 0))
+
+    const aggFor = (list) => {
+      let sales = money(0)
+      let spend = money(0)
+      for (const inv of list) {
+        if (inv.kind === 'sale') sales = plus(sales, inv.total)
+        else spend = plus(spend, Math.abs(inv.total).toFixed(2))
+      }
+      return round2(minus(sales.toNumber(), spend.toNumber()).toNumber())
+    }
 
     const noShiftBlock = {
       invoices: noShift,
       subtotal: round2(noShift.reduce((s, i) => s + i.total, 0)),
+      sales_total: round2(noShift.filter((i) => i.kind === 'sale').reduce((s, i) => s + i.total, 0)),
+      spend_total: round2(noShift.filter((i) => i.kind !== 'sale').reduce((s, i) => s + Math.abs(i.total), 0)),
+      aggregate: aggFor(noShift),
     }
     const outOfHoursBlock = {
       invoices: outOfHours,
       subtotal: round2(outOfHours.reduce((s, i) => s + i.total, 0)),
+      sales_total: round2(outOfHours.filter((i) => i.kind === 'sale').reduce((s, i) => s + i.total, 0)),
+      spend_total: round2(outOfHours.filter((i) => i.kind !== 'sale').reduce((s, i) => s + Math.abs(i.total), 0)),
+      aggregate: aggFor(outOfHours),
     }
 
     // ---- view 2: by account ----
@@ -165,11 +217,14 @@ export const TransactionLogService = {
         return cmp !== 0 ? cmp : String(a.username).localeCompare(String(b.username))
       })
 
+    const allAggregate = aggFor(invoices)
+
     return {
       date: dateStr,
       summary,
       shift_view: { groups, no_shift: noShiftBlock, out_of_hours: outOfHoursBlock },
       account_view,
+      shift_aggregate: allAggregate,
     }
   },
 
@@ -178,11 +233,18 @@ export const TransactionLogService = {
     if (!Number.isInteger(idNum) || idNum < 1) {
       throw new ValidationError('رقم الفاتورة غير صالح')
     }
-    const header = TransactionLogRepository.getInvoiceHeader(idNum)
+
+    const header =
+      TransactionLogRepository.getSalesInvoiceHeader(idNum) ||
+      TransactionLogRepository.getInvoiceHeader(idNum)
     if (!header) {
       throw new AppError('NOT_FOUND', 'الفاتورة غير موجودة', 404)
     }
-    const items = TransactionLogRepository.getItemsForInvoice(idNum)
+
+    const isSale = Boolean(header.is_sale)
+    const items = isSale
+      ? TransactionLogRepository.getSalesItemsForInvoice(idNum)
+      : TransactionLogRepository.getItemsForInvoice(idNum)
 
     const time = timeOf(header.created_at)
     return {
@@ -197,22 +259,47 @@ export const TransactionLogService = {
         username: header.username,
         user_role: header.user_role,
         supplier_name: header.supplier_name || null,
+        customer_name: header.customer_name || null,
+        invoice_type: isSale ? header.invoice_type : null,
+        discount_type: isSale ? header.discount_type : null,
+        discount_percent: isSale ? Number(header.discount_percent) : null,
+        discount_value: isSale ? Number(header.discount_value) : null,
+        total_before_discount: isSale ? Number(header.total_before_discount) : null,
+        total_after_discount: isSale ? Number(header.total_after_discount) : null,
+        paid_amount: isSale ? Number(header.paid_amount) : null,
+        remaining_amount: isSale ? Number(header.remaining_amount) : null,
+        status: isSale ? header.status : null,
         shipping_cost: Number(header.shipping_cost),
         total_amount: Number(header.total_amount),
         notes: header.notes || null,
       },
-      items: items.map((it) => ({
-        item_id: it.item_id,
-        product_id: it.product_id,
-        product_name: it.product_name || 'منتج محذوف',
-        category_name: it.category_name || '—',
-        quantity: Number(it.quantity),
-        unit_cost: Number(it.unit_cost),
-        retail_price: it.retail_price === null || it.retail_price === undefined ? null : Number(it.retail_price),
-        line_total: Number(it.line_total),
-        barcode: it.barcode || null,
-        is_new_product: Boolean(it.is_new_product),
-      })),
+      items: items.map((it) =>
+        isSale
+          ? {
+              item_id: it.item_id,
+              product_id: it.product_id,
+              product_name: it.product_name || 'منتج محذوف',
+              category_name: it.category_name || '—',
+              quantity: Number(it.quantity),
+              original_price: Number(it.original_price ?? it.unit_price ?? 0),
+              unit_price: Number(it.unit_price),
+              cost_price_at_sale: Number(it.cost_price_at_sale ?? 0),
+              line_total: Number(it.line_total),
+              barcode: it.barcode || null,
+            }
+          : {
+              item_id: it.item_id,
+              product_id: it.product_id,
+              product_name: it.product_name || 'منتج محذوف',
+              category_name: it.category_name || '—',
+              quantity: Number(it.quantity),
+              unit_cost: Number(it.unit_cost),
+              retail_price: it.retail_price === null || it.retail_price === undefined ? null : Number(it.retail_price),
+              line_total: Number(it.line_total),
+              barcode: it.barcode || null,
+              is_new_product: Boolean(it.is_new_product),
+            }
+      ),
     }
   },
 }

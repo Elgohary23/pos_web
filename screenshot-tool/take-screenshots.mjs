@@ -8,6 +8,7 @@ const PAGES = [
   { path: '/login', name: 'login' },
   { path: '/', name: 'home' },
   { path: '/supply-invoice', name: 'supply-invoice' },
+  { path: '/sales-invoice', name: 'sales-invoice' },
   { path: '/employees', name: 'employees' },
   { path: '/categories', name: 'categories' },
   { path: '/products', name: 'products' },

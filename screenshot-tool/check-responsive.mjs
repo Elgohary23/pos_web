@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 
-const PAGES = ['/login', '/', '/supply-invoice', '/employees', '/categories', '/products']
+const PAGES = ['/login', '/', '/supply-invoice', '/sales-invoice', '/employees', '/categories', '/products']
 const VIEWPORTS = [
   { name: 'mobile-375', width: 375, height: 812 },
   { name: 'mobile-390', width: 390, height: 844 },

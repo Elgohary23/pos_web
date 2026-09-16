@@ -11,6 +11,8 @@ import productRoutes from './routes/productRoutes.js'
 import supplierRoutes from './routes/supplierRoutes.js'
 import supplyInvoiceRoutes from './routes/supplyInvoiceRoutes.js'
 import transactionRoutes from './routes/transactionRoutes.js'
+import salesInvoiceRoutes from './routes/salesInvoiceRoutes.js'
+import customerRoutes from './routes/customerRoutes.js'
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -56,6 +58,8 @@ app.use('/api/products', productRoutes)
 app.use('/api/suppliers', supplierRoutes)
 app.use('/api/supply-invoices', supplyInvoiceRoutes)
 app.use('/api/transactions', transactionRoutes)
+app.use('/api/sales-invoices', salesInvoiceRoutes)
+app.use('/api/customers', customerRoutes)
 
 app.get('/', (req, res) => {
   res.send('نظام الكاشير - الخادم يعمل')

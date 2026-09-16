@@ -3,8 +3,8 @@ import { AppError } from '../utils/AppError.js'
 import { AuditRepository } from '../repositories/auditRepository.js'
 
 const rolePermissions = {
-  admin: ['CREATE_SUPPLY_INVOICE'],
-  employee: ['CREATE_SUPPLY_INVOICE'],
+  admin: ['CREATE_SUPPLY_INVOICE', 'CREATE_SALE_INVOICE'],
+  employee: ['CREATE_SUPPLY_INVOICE', 'CREATE_SALE_INVOICE'],
 }
 
 export function requirePermission(permission) {

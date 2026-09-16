@@ -22,6 +22,10 @@ export default function Dashboard() {
         e.preventDefault()
         navigate('/supply-invoice')
       }
+      if (e.key === 'F4') {
+        e.preventDefault()
+        navigate('/sales-invoice')
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
