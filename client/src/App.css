@@ -22,6 +22,7 @@ body {
   font-family: "Segoe UI", Tahoma, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
+  line-height: 1.6;
 }
 
 .full-page-loader {
@@ -465,6 +466,15 @@ input:focus {
   font-size: 0.75rem;
   color: var(--muted);
   font-weight: 400;
+  white-space: nowrap;
+}
+
+.hint::before {
+  content: ' ( ';
+}
+
+.hint::after {
+  content: ' )';
 }
 
 .shift-row {
@@ -1051,10 +1061,9 @@ input[type="file"] {
 }
 
 .invoice-item-fields {
-  display: grid;
-  grid-template-columns: 1fr 130px 130px 90px 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 0.8rem;
-  align-items: end;
 }
 
 .btn-add-line {
@@ -1215,7 +1224,175 @@ input[type="file"] {
   .invoice-grid {
     grid-template-columns: 1fr;
   }
-  .invoice-item-fields {
-    grid-template-columns: 1fr 1fr;
+}
+
+/* =====================================================
+   Responsive — Tablet / Mobile / Phone
+   ===================================================== */
+
+@media (max-width: 1024px) {
+  .cat-layout {
+    grid-template-columns: 240px 1fr;
+  }
+  .navbar {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Dashboard: sidebar collapses to a horizontal scrollable nav */
+  .dashboard-body {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    padding: 0.5rem 0;
+  }
+  .sidebar-header {
+    display: none;
+  }
+  .sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 0.6rem;
+  }
+  .nav-link {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Navbar wraps instead of overflowing */
+  .navbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 60px;
+    padding: 0.6rem 1rem;
+  }
+  .navbar-actions {
+    flex-wrap: wrap;
+    margin-inline-start: auto;
+  }
+
+  /* Page header stacks title + actions */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .page-header h1 {
+    font-size: 1.3rem;
+  }
+
+  /* Form grids become single column */
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .shift-row {
+    flex-direction: column;
+  }
+  .shift-row .field-group {
+    width: 100%;
+  }
+  .time-picker select {
+    min-width: 0;
+  }
+
+  /* Category page: tree goes on top of the detail */
+  .cat-layout {
+    grid-template-columns: 1fr;
+  }
+  .cat-tree {
+    position: static;
+    max-height: 260px;
+  }
+
+  /* Filter bar stacks vertically */
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-select {
+    min-width: 0;
+  }
+
+  /* Modals breathe on small screens */
+  .modal-overlay {
+    padding: 0.75rem;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+  .modal-box {
+    padding: 1.4rem 1.2rem;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+
+  /* Invoice page refinements */
+  .invoice-grid {
+    grid-template-columns: 1fr;
+  }
+  .invoice-card {
+    min-width: 0;
+    padding: 1rem;
+  }
+  .total-bar {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .lines-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .dashboard-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Navbar simplifies on phones */
+  .navbar-user {
+    display: none;
+  }
+  .navbar-title {
+    font-size: 1rem;
+  }
+  .btn-change-password,
+  .btn-logout {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  /* Login card tightens */
+  .login-card {
+    padding: 1.6rem 1.2rem;
+  }
+
+  /* Phones: tighter modal + full-width kind radios */
+  .modal-overlay {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
+  .modal-box {
+    padding: 1.2rem 1rem;
+    border-radius: 12px;
+  }
+  .kind-radio-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .kind-radio {
+    justify-content: center;
+  }
+  .barcode-item img {
+    width: 100%;
+    height: auto;
+  }
+  .child-cards {
+    grid-template-columns: 1fr;
+  }
+  .hint {
+    white-space: normal;
   }
 }
