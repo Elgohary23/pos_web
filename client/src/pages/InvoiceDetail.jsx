@@ -20,7 +20,8 @@ const INVOICE_TYPE_LABELS = {
 const DISCOUNT_LABELS = {
   none: 'بدون خصم',
   predefined: 'خصم معرف مسبقًا',
-  variable: 'خصم متغير',
+  variable: 'خصم نسبة',
+  fixed: 'خصم قيمة',
   free: 'فاتورة مجانية',
 }
 
@@ -131,6 +132,11 @@ export default function InvoiceDetail() {
                 {inv.discount_percent}%
               </DetailField>
             )}
+            {inv.discount_type === 'fixed' && (
+              <DetailField label="قيمة الخصم">
+                {fmt(inv.discount_value)}
+              </DetailField>
+            )}
           </>
         ) : (
           <>
@@ -209,7 +215,7 @@ export default function InvoiceDetail() {
             <span>{fmt(subtotal)}</span>
           </div>
           <div className="inv-total-row">
-            <span>الخصم {inv.discount_type === 'variable' ? `(${inv.discount_percent}%)` : inv.discount_type === 'free' ? '(مجاني)' : ''}</span>
+            <span>الخصم {inv.discount_type === 'variable' ? `(${inv.discount_percent}%)` : inv.discount_type === 'free' ? '(مجاني)' : inv.discount_type === 'fixed' ? '(قيمة)' : ''}</span>
             <span className="neg">- {fmt(inv.discount_value || 0)}</span>
           </div>
           <div className={'inv-total-row inv-total-grand'}>

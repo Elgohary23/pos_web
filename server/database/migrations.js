@@ -248,6 +248,42 @@ const migrations = [
       `)
     },
   },
+  {
+    id: 9,
+    name: 'add_fixed_discount_type',
+    up(db) {
+      // SQLite cannot ALTER CHECK constraints, so recreate the table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS sales_invoices_new (
+          invoice_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          invoice_type TEXT NOT NULL CHECK (invoice_type IN ('product_sale','service_sale','reservation')),
+          customer_id INTEGER REFERENCES customers(customer_id),
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          total_before_discount REAL NOT NULL DEFAULT 0,
+          discount_type TEXT NOT NULL DEFAULT 'none' CHECK (discount_type IN ('none','predefined','variable','free','fixed')),
+          discount_percent REAL NOT NULL DEFAULT 0,
+          discount_value REAL NOT NULL DEFAULT 0,
+          total_after_discount REAL NOT NULL DEFAULT 0,
+          paid_amount REAL NOT NULL DEFAULT 0,
+          remaining_amount REAL NOT NULL DEFAULT 0,
+          status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed','reserved','delivered','cancelled')),
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        INSERT INTO sales_invoices_new
+          SELECT * FROM sales_invoices;
+
+        DROP TABLE sales_invoices;
+
+        ALTER TABLE sales_invoices_new RENAME TO sales_invoices;
+
+        CREATE INDEX IF NOT EXISTS idx_sales_date ON sales_invoices(created_at);
+        CREATE INDEX IF NOT EXISTS idx_sales_user ON sales_invoices(user_id);
+        CREATE INDEX IF NOT EXISTS idx_sales_cust ON sales_invoices(customer_id);
+      `)
+    },
+  },
 ]
 
 export function runMigrations(db) {

@@ -195,6 +195,63 @@ ok('discount_percent = 100', res9.discount_percent === 100)
 ok('إجمالي بعد الخصم = 0', res9.total_after_discount === 0)
 ok('المتبقي = 0', res9.remaining_amount === 0)
 
+// ---------- Scenario 9b: employee cannot create free invoice ----------
+console.log('\nScenario 9b: منع الموظف من الفاتورة المجانية')
+await expectError(async () => SalesInvoiceService.createSaleInvoice({
+  invoice_type: 'product_sale',
+  customer_name: 'عميل',
+  discount_type: 'free',
+  items: [{ product_id: pen.id, quantity: 1 }],
+}, employee), 'VALIDATION_ERROR', 'موظف يحاول إنشاء فاتورة مجانية')
+
+// ---------- Scenario 9c: fixed discount ----------
+console.log('\nScenario 9c: خصم قيمة ثابتة')
+const res9c = SalesInvoiceService.createSaleInvoice({
+  invoice_type: 'product_sale',
+  discount_type: 'fixed',
+  discount_value: 5,
+  items: [{ product_id: pen.id, quantity: 2 }],
+}, admin)
+ok('إجمالي قبل الخصم = 14', res9c.total_before_discount === 14)
+ok('قيمة الخصم = 5', res9c.discount_value === 5)
+ok('إجمالي بعد الخصم = 9', res9c.total_after_discount === 9)
+ok('discount_percent = 0 (fixed لا نسبة)', res9c.discount_percent === 0)
+
+// ---------- Scenario 9c-employee: fixed discount restriction for employee ----------
+console.log('\nScenario 9c-employee: قيد الموظف على خصم القيمة')
+await expectError(async () => SalesInvoiceService.createSaleInvoice({
+  invoice_type: 'product_sale',
+  discount_type: 'fixed',
+  discount_value: 2,
+  items: [{ product_id: pen.id, quantity: 1 }],
+}, employee), 'VALIDATION_ERROR', 'موظف بخصم قيمة بدون اسم عميل')
+await expectError(async () => SalesInvoiceService.createSaleInvoice({
+  invoice_type: 'product_sale',
+  customer_name: 'عميل نقدي',
+  discount_type: 'fixed',
+  discount_value: 2,
+  items: [{ product_id: pen.id, quantity: 1 }],
+}, employee), 'VALIDATION_ERROR', 'موظف بخصم قيمة بدون ملاحظات')
+const res9cEmp = SalesInvoiceService.createSaleInvoice({
+  invoice_type: 'product_sale',
+  customer_name: 'عميل نقدي',
+  discount_type: 'fixed',
+  discount_value: 2,
+  notes: 'خصم نقدي',
+  items: [{ product_id: pen.id, quantity: 1 }],
+}, employee)
+ok('موظف يستخدم خصم قيمة بالاسم والملاحظات', res9cEmp.discount_value === 2)
+ok('إجمالي بعد الخصم = 5', res9cEmp.total_after_discount === 5)
+
+// ---------- Scenario 9d: fixed discount exceeds total ----------
+console.log('\nScenario 9d: قيمة خصم أكبر من الإجمالي')
+await expectError(async () => SalesInvoiceService.createSaleInvoice({
+  invoice_type: 'product_sale',
+  discount_type: 'fixed',
+  discount_value: 9999,
+  items: [{ product_id: pen.id, quantity: 1 }],
+}, admin), 'VALIDATION_ERROR', 'قيمة خصم أكبر من الإجمالي')
+
 // ---------- Scenario 10: cash sale without customer ----------
 console.log('\nScenario 10: بيع نقدي بدون عميل')
 const res10 = SalesInvoiceService.createSaleInvoice({

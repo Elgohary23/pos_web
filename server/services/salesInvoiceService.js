@@ -72,23 +72,28 @@ export const SalesInvoiceService = {
     }
 
     const discountType = dto?.discount_type || 'none'
-    const validDiscounts = ['none', 'predefined', 'variable', 'free']
+    const validDiscounts = ['none', 'predefined', 'variable', 'free', 'fixed']
     if (!validDiscounts.includes(discountType)) {
       throw new ValidationError('نوع الخصم غير صالح')
+    }
+
+    const userId = currentUser?.id
+    const userRole = currentUser?.role
+
+    if (userRole === 'employee' && discountType === 'free') {
+      throw new ValidationError('لا يُسمح للموظف بإنشاء فاتورة مجانية')
     }
 
     const customerName = dto?.customer_name ? String(dto.customer_name).trim() : ''
     const customerPhone = dto?.customer_phone ? String(dto.customer_phone).trim() : null
     const notes = dto?.notes ? String(dto.notes).trim() : null
-    const userId = currentUser?.id
-    const userRole = currentUser?.role
 
-    if (userRole === 'employee' && discountType === 'variable') {
+    if (userRole === 'employee' && (discountType === 'variable' || discountType === 'fixed')) {
       if (!customerName) {
-        throw new ValidationError('يجب إدخال اسم العميل عند تطبيق خصم متغير')
+        throw new ValidationError('يجب إدخال اسم العميل عند تطبيق خصم')
       }
       if (!notes) {
-        throw new ValidationError('يجب إدخال ملاحظات إضافية عند تطبيق خصم متغير')
+        throw new ValidationError('يجب إدخال ملاحظات إضافية عند تطبيق خصم')
       }
     }
 
@@ -96,7 +101,7 @@ export const SalesInvoiceService = {
     if (discountType === 'free') {
       discountPercent = 100
     }
-    if (discountType === 'none') {
+    if (discountType === 'none' || discountType === 'fixed') {
       discountPercent = 0
     }
 
@@ -112,7 +117,18 @@ export const SalesInvoiceService = {
       totalBeforeDiscount = plus(totalBeforeDiscount, item.line_total)
     }
 
-    const discountValue = round2(times(totalBeforeDiscount.toNumber(), discountPercent).div(100).toNumber())
+    let discountValue
+    if (discountType === 'fixed') {
+      discountValue = round2(Number(dto?.discount_value) || 0)
+      if (!Number.isFinite(discountValue) || discountValue < 0) {
+        throw new ValidationError('قيمة الخصم غير صالحة')
+      }
+      if (discountValue > totalBeforeDiscount.toNumber()) {
+        throw new ValidationError('قيمة الخصم أكبر من إجمالي الفاتورة')
+      }
+    } else {
+      discountValue = round2(times(totalBeforeDiscount.toNumber(), discountPercent).div(100).toNumber())
+    }
     const totalAfterDiscount = round2(minus(totalBeforeDiscount.toNumber(), discountValue).toNumber())
     const remainingAmount = round2(minus(totalAfterDiscount, paidAmountNumber).toNumber())
 

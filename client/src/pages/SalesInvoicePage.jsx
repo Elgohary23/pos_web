@@ -16,6 +16,7 @@ export default function SalesInvoicePage() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [discountType, setDiscountType] = useState('none')
   const [discountPercent, setDiscountPercent] = useState('')
+  const [discountFixedValue, setDiscountFixedValue] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -120,7 +121,11 @@ export default function SalesInvoicePage() {
     () => lines.reduce((s, l) => s + l.unit_price * l.quantity, 0),
     [lines]
   )
-  const discountValue = discountType === 'none' ? 0 : (subtotal * percent) / 100
+  const discountValue = discountType === 'none'
+    ? 0
+    : discountType === 'fixed'
+      ? Math.min(discountFixedValue === '' ? 0 : Number(discountFixedValue) || 0, subtotal)
+      : (subtotal * percent) / 100
   const totalAfterDiscount = subtotal - discountValue
   const paid = paidAmount === '' ? 0 : Number(paidAmount) || 0
   const remaining = totalAfterDiscount - paid
@@ -191,13 +196,21 @@ export default function SalesInvoicePage() {
       setError('أدخل نسبة الخصم')
       return
     }
-    if (isEmployee && discountType === 'variable') {
+    if (discountType === 'fixed' && (!discountFixedValue || Number(discountFixedValue) <= 0)) {
+      setError('أدخل قيمة الخصم')
+      return
+    }
+    if (discountType === 'fixed' && Number(discountFixedValue) > subtotal) {
+      setError('قيمة الخصم أكبر من إجمالي الفاتورة')
+      return
+    }
+    if (isEmployee && (discountType === 'variable' || discountType === 'fixed')) {
       if (!customerName.trim()) {
-        setError('يجب إدخال اسم العميل عند تطبيق خصم متغير')
+        setError('يجب إدخال اسم العميل عند تطبيق خصم')
         return
       }
       if (!notes.trim()) {
-        setError('يجب إدخال ملاحظات إضافية عند تطبيق خصم متغير')
+        setError('يجب إدخال ملاحظات إضافية عند تطبيق خصم')
         return
       }
     }
@@ -214,6 +227,7 @@ export default function SalesInvoicePage() {
         customer_phone: customerPhone.trim() || undefined,
         discount_type: discountType,
         discount_percent: discountType === 'variable' ? Number(discountPercent) : undefined,
+        discount_value: discountType === 'fixed' ? Number(discountFixedValue) : undefined,
         paid_amount: paidAmount === '' ? undefined : paid,
         notes: notes.trim() || undefined,
         items: lines.map((l) => ({
@@ -230,6 +244,7 @@ export default function SalesInvoicePage() {
       setCustomerPhone('')
       setDiscountType('none')
       setDiscountPercent('')
+      setDiscountFixedValue('')
       setPaidAmount('')
       setNotes('')
       setInvoiceType('product_sale')
@@ -278,7 +293,7 @@ export default function SalesInvoicePage() {
 
           <div className="field-group">
             <span className="field-label">
-              اسم العميل {isEmployee && discountType === 'variable' ? <span className="hint required">مطلوب لخصم المتغير</span> : <span className="hint">(اختياري — يمكن كتابة اسم جديد)</span>}
+              اسم العميل {isEmployee && (discountType === 'variable' || discountType === 'fixed') ? <span className="hint required">مطلوب للخصم</span> : <span className="hint">(اختياري — يمكن كتابة اسم جديد)</span>}
             </span>
             <div className="autocomplete-wrap">
               <input
@@ -320,21 +335,29 @@ export default function SalesInvoicePage() {
               <label className={'kind-radio' + (discountType === 'none' ? ' active' : '')}>
                 <input type="radio" name="discountType" value="none"
                   checked={discountType === 'none'}
-                  onChange={() => { setDiscountType('none'); setDiscountPercent('') }} />
+                  onChange={() => { setDiscountType('none'); setDiscountPercent(''); setDiscountFixedValue('') }} />
                 بدون خصم
               </label>
               <label className={'kind-radio' + (discountType === 'variable' ? ' active' : '')}>
                 <input type="radio" name="discountType" value="variable"
                   checked={discountType === 'variable'}
-                  onChange={() => setDiscountType('variable')} />
-                خصم متغير
+                  onChange={() => { setDiscountType('variable'); setDiscountFixedValue('') }} />
+                خصم نسبة
               </label>
-              <label className={'kind-radio' + (discountType === 'free' ? ' active' : '')}>
-                <input type="radio" name="discountType" value="free"
-                  checked={discountType === 'free'}
-                  onChange={() => { setDiscountType('free'); setDiscountPercent('100') }} />
-                فاتورة مجانية
+              <label className={'kind-radio' + (discountType === 'fixed' ? ' active' : '')}>
+                <input type="radio" name="discountType" value="fixed"
+                  checked={discountType === 'fixed'}
+                  onChange={() => { setDiscountType('fixed'); setDiscountPercent('') }} />
+                خصم قيمة
               </label>
+              {!isEmployee && (
+                <label className={'kind-radio' + (discountType === 'free' ? ' active' : '')}>
+                  <input type="radio" name="discountType" value="free"
+                    checked={discountType === 'free'}
+                    onChange={() => { setDiscountType('free'); setDiscountPercent('100'); setDiscountFixedValue('') }} />
+                  فاتورة مجانية
+                </label>
+              )}
             </div>
           </div>
 
@@ -342,6 +365,13 @@ export default function SalesInvoicePage() {
             <div className="field-group">
               <span className="field-label">نسبة الخصم %</span>
               <MoneyInput value={discountPercent} onChange={setDiscountPercent} placeholder="10" />
+            </div>
+          )}
+
+          {discountType === 'fixed' && (
+            <div className="field-group">
+              <span className="field-label">قيمة الخصم</span>
+              <MoneyInput value={discountFixedValue} onChange={setDiscountFixedValue} placeholder="0.00" />
             </div>
           )}
 
@@ -451,7 +481,7 @@ export default function SalesInvoicePage() {
         </div>
         {discountType !== 'none' && (
           <div className="sales-total-row">
-            <span>الخصم {discountType === 'free' ? '(مجاني)' : `(${percent}%)`}</span>
+            <span>الخصم {discountType === 'free' ? '(مجاني)' : discountType === 'fixed' ? '(قيمة)' : `(${percent}%)`}</span>
             <span className="neg">- {fmt(discountValue)}</span>
           </div>
         )}
@@ -471,7 +501,7 @@ export default function SalesInvoicePage() {
 
       <div className="field-group invoice-notes">
         <span className="field-label">
-          ملاحظات {isEmployee && discountType === 'variable' ? <span className="hint required">مطلوبة لخصم المتغير</span> : ''}
+          ملاحظات {isEmployee && (discountType === 'variable' || discountType === 'fixed') ? <span className="hint required">مطلوبة للخصم</span> : ''}
         </span>
         <textarea className="notes-textarea" rows={2} value={notes}
           onChange={(e) => setNotes(e.target.value)}
