@@ -29,6 +29,22 @@ export const BarcodeService = {
     return code
   },
 
+  async ensurePng(code) {
+    const filePath = path.join(barcodesDir, `${code}.png`)
+    if (!fs.existsSync(filePath)) {
+      await this.generatePng(code)
+    }
+    return `/barcodes/${code}.png`
+  },
+
+  async ensurePngs(codes) {
+    const urls = []
+    for (const code of codes) {
+      urls.push(await this.ensurePng(code))
+    }
+    return urls
+  },
+
   async generatePng(code) {
     const filePath = path.join(barcodesDir, `${code}.png`)
     try {

@@ -8,7 +8,9 @@
     "dev": "node --watch index.js",
     "test:supply": "node tests/supply.test.mjs",
     "test:transactions": "node tests/transactionLog.test.mjs",
-    "test:sales": "node tests/salesInvoice.test.mjs"
+    "test:sales": "node tests/salesInvoice.test.mjs",
+    "test:backup": "node tests/backup.test.mjs",
+    "test:backup": "node tests/backup.test.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

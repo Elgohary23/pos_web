@@ -25,11 +25,17 @@ export default function Sidebar() {
             <NavLink to="/products" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
               المنتجات
             </NavLink>
+            <NavLink to="/barcodes" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+              طباعة الباركود
+            </NavLink>
             <NavLink to="/transactions" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
               سجل المعاملات
             </NavLink>
             <NavLink to="/employees" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
               إدارة الموظفين
+            </NavLink>
+            <NavLink to="/backup" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+              النسخ الاحتياطي
             </NavLink>
           </>
         )}

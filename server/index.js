@@ -13,17 +13,23 @@ import supplyInvoiceRoutes from './routes/supplyInvoiceRoutes.js'
 import transactionRoutes from './routes/transactionRoutes.js'
 import salesInvoiceRoutes from './routes/salesInvoiceRoutes.js'
 import customerRoutes from './routes/customerRoutes.js'
+import backupRoutes from './routes/backupRoutes.js'
+import barcodeRoutes from './routes/barcodeRoutes.js'
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const uploadsDir = path.join(__dirname, 'uploads')
 const barcodesDir = path.join(__dirname, 'public', 'barcodes')
+const backupsDir = path.join(__dirname, 'backups')
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true })
 }
 if (!fs.existsSync(barcodesDir)) {
   fs.mkdirSync(barcodesDir, { recursive: true })
+}
+if (!fs.existsSync(backupsDir)) {
+  fs.mkdirSync(backupsDir, { recursive: true })
 }
 
 const app = express()
@@ -60,6 +66,8 @@ app.use('/api/supply-invoices', supplyInvoiceRoutes)
 app.use('/api/transactions', transactionRoutes)
 app.use('/api/sales-invoices', salesInvoiceRoutes)
 app.use('/api/customers', customerRoutes)
+app.use('/api/backup', backupRoutes)
+app.use('/api/barcodes', barcodeRoutes)
 
 app.get('/', (req, res) => {
   res.send('نظام الكاشير - الخادم يعمل')

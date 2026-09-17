@@ -7,3 +7,10 @@ dist/
 *.log
 uploads/
 server/public/barcodes/
+server/backups/
+*.pre-restore
+# demo video the user keeps in the repo root — not part of the app
+*.mp4
+# playwright persisted admin session cookies (do not commit)
+screenshot-tool/storageState.json
+

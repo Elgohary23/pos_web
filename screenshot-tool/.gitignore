@@ -1,0 +1,6 @@
+# session cookies from Playwright login — never commit
+storageState.json
+# stray probe leftovers
+_httptest.mjs
+_probe*.mjs
+_probe*.png

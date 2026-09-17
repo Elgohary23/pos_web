@@ -10,6 +10,8 @@ import SupplyInvoicePage from './pages/SupplyInvoicePage.jsx'
 import SalesInvoicePage from './pages/SalesInvoicePage.jsx'
 import TransactionLog from './pages/TransactionLog.jsx'
 import InvoiceDetail from './pages/InvoiceDetail.jsx'
+import BarcodePrintPage from './pages/BarcodePrintPage.jsx'
+import BackupPage from './pages/BackupPage.jsx'
 
 function Home() {
   return (
@@ -35,6 +37,8 @@ export default function App() {
             <Route path="products" element={<Products />} />
             <Route path="transactions" element={<TransactionLog />} />
             <Route path="transactions/:id" element={<InvoiceDetail />} />
+            <Route path="barcodes" element={<BarcodePrintPage />} />
+            <Route path="backup" element={<BackupPage />} />
           </Route>
         </Route>
       </Route>

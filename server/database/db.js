@@ -4,13 +4,29 @@ import { fileURLToPath } from 'url'
 import { runMigrations } from './migrations.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'database.sqlite')
+export const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'database.sqlite')
 
-const db = new Database(dbPath)
+function configure(instance) {
+  instance.pragma('journal_mode = WAL')
+  instance.pragma('foreign_keys = ON')
+  runMigrations(instance)
+}
 
-db.pragma('journal_mode = WAL')
-db.pragma('foreign_keys = ON')
+function open() {
+  const instance = new Database(dbPath)
+  configure(instance)
+  return instance
+}
 
-runMigrations(db)
+let db = open()
 
-export default db
+export function reconnectDatabase() {
+  db = open()
+  return db
+}
+
+export function closeDatabase() {
+  if (db && db.open) db.close()
+}
+
+export { db as default }

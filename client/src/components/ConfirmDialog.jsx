@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function ConfirmDialog({ title, message, confirmLabel = 'تأكيد', onCancel, onConfirm }) {
+export default function ConfirmDialog({ title, message, confirmLabel = 'تأكيد', busyLabel = 'جارٍ الحذف...', onCancel, onConfirm }) {
   const [busy, setBusy] = useState(false)
 
   const handleConfirm = async () => {
@@ -22,7 +22,7 @@ export default function ConfirmDialog({ title, message, confirmLabel = 'تأكي
             إلغاء
           </button>
           <button type="button" className="btn-danger" onClick={handleConfirm} disabled={busy}>
-            {busy ? 'جارٍ الحذف...' : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>

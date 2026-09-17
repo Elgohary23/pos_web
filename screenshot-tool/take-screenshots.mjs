@@ -12,6 +12,9 @@ const PAGES = [
   { path: '/employees', name: 'employees' },
   { path: '/categories', name: 'categories' },
   { path: '/products', name: 'products' },
+  { path: '/transactions', name: 'transactions' },
+  { path: '/barcodes', name: 'barcodes' },
+  { path: '/backup', name: 'backup' },
 ]
 
 const VIEWPORTS = {
