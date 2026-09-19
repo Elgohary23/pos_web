@@ -8,6 +8,7 @@ POS (cashier) system. Two **independent npm packages** — no root `package.json
 ## Commands (run inside each package folder — there is no root script)
 - Client: `npm run dev` (Vite :5173), `npm run build`, `npm run preview`.
 - Server: `npm run dev` (uses `node --watch index.js`), `npm start` (:3000), `npm run test:supply` (runs `tests/supply.test.mjs` with a temp DB — safe, auto-cleans), `npm run test:transactions` (runs `tests/transactionLog.test.mjs` — same pattern).
+- Installer build (from repo root): `powershell -ExecutionPolicy Bypass -File package\build.ps1 [-SkipClientBuild] [-SkipDownloads] [-Port 3000] [-Version 1.0.0]` → produces `package\dist\KasabiPOS-Setup-<version>.exe`. Downloads NSSM + NSIS 3 into `package\cache\` on first run (internet needed). See "Windows service installer" below.
 - **No lint/typecheck configs exist yet.** Scaffold one (ESLint) when a feature warrants it — never assume a script exists.
 - Windows gotcha: when spawning npm programmatically from PowerShell use `npm.cmd`, not `npm` (`Start-Process npm` fails). Repo root path contains Arabic characters — always `-LiteralPath` + quoted paths.
 
@@ -59,6 +60,7 @@ Layered structure:
 | `/api/sales-invoices/:id` | `requireAuth` + `requireAdmin` | GET full sale details (header + line items incl. cost snapshot) |
 | `/api/transactions` | `requireAuth` + `requireAdmin` | GET `?date=YYYY-MM-DD` → daily log pre-grouped for two views (shift + account), with out-of-hours classification |
 | `/api/transactions/:id` | `requireAuth` + `requireAdmin` | GET → full invoice details (header + snapshot items), resolves both supply and sale invoices |
+| `/api/system` | `requireAuth` | GET → `{ port, hostname, addresses[] }` of the host (powers the Home-page «الدخول من الموبايل» card) |
 
 ### Supply/return invoice business rules
 - Single endpoint `POST /api/supply-invoices`. Body `kind`: `'supply'` or `'return'`.
@@ -139,6 +141,16 @@ Standalone Playwright tooling (own `package.json`, chromium installed). Requires
   - `server/tests/salesInvoice.test.mjs` → `npm run test:sales` — sale totals/discounts, price snapshot, stock decrease (+ service no-deduct), insufficient-stock rollback, employee variable-discount restriction, free invoice, cash sale, customer get_or_create, transaction-log integration, sale detail view.
 - All three are self-contained: create a temp DB in `os.tmpdir()`, run all migrations, clean up DB + generated barcode PNGs on exit. Safe to run anytime.
 - To add a new test file: follow the same pattern (set `process.env.DB_PATH` to a temp path before importing `db.js`, clean up at end).
+
+## Windows service installer (`package/`)
+The product ships as a single `.exe` that installs a **Windows service** (NSSM-wrapped `node.exe`) serving the **built client + API on one port** (default 3000) for the whole LAN. Toolchain lives in `package/` (NSIS 3 + NSSM are downloaded to `package/cache/` on first build — internet needed).
+
+- Build: `powershell -ExecutionPolicy Bypass -File package\build.ps1 [-Port 3000] [-Version 1.0.0] [-SkipClientBuild] [-SkipDownloads]` → `package\dist\KasabiPOS-Setup-<version>.exe`. Staging happens in `package\build\stage\` (`app.ico` and `provision.js` land at its root; node runtime in `runtime\node.exe`, server in `server/` + `node_modules`, client build in `client\`, NSSM in `tools\nssm.exe`).
+- Runtime layout (installed under `$PROGRAMFILES64\KasabiPOS`): `server/` (app + node_modules), `client/` (built SPA), `runtime/node.exe`, `tools/nssm.exe`, `provision.js`, `app.ico`, `kasabi.json` (generated `port` + random `sessionSecret`), `data/kasabi.sqlite` + `data/sessions.sqlite`, `logs/output.log` + `error.log`.
+- Installer actions (`provision.js <action> <appDir> <port>`): `install` = stop/remove stale service → write `kasabi.json` → create auto-start service (NSSM, LocalSystem, restart-on-crash) → add inbound TCP firewall rule (`KasabiPOS Service`) → start; `stop` = remove service (used for upgrades); `uninstall` = stop+remove service + delete firewall rule. Paths passed to NSSM use 8.3 short names so the service command line has no spaces.
+- Shortcuts: Start Menu (`نظام الكاشير.url` + uninstall link) and Desktop (`نظام الكاشير.url`) opening `http://localhost:<port>`. Uninstall wipes the whole install dir incl. service, firewall rule, shortcuts and registry entry.
+- **Keep in mind**: (1) the installer is unsigned — Windows SmartScreen will warn; (2) bound service DB path is `data/kasabi.sqlite`; (3) `node_modules` is copied from `server/` verbatim, so build from the machine whose Node ABI matches the bundled `node.exe` (better-sqlite3 v13 is N-API — safe across 24.x); (4) `npm test`-style extra deps and dev data (`tests/`, `uploads/`, `barcodes/`, `backups/`, `*.sqlite*`) are pruned at stage time.
+- Production single-port serving lives in `server/index.js`: when `CLIENT_DIST` (or default `client/dist`) has `index.html`, Express serves the static build and SPA-falls-back for extension-less GETs (API paths excluded). `SESSION_DIR` (default `.`) relocates the session store; `DB_PATH`/`PORT`/`SESSION_SECRET` env override as usual.
 
 ## Git / GitHub
 - Remote: `git@github.com:Elgohary23/pos_web.git`.

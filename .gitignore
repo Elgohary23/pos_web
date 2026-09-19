@@ -14,3 +14,8 @@ server/backups/
 # playwright persisted admin session cookies (do not commit)
 screenshot-tool/storageState.json
 
+# Windows service installer build artifacts
+package/cache/
+package/build/
+package/dist/
+

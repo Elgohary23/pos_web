@@ -12,15 +12,7 @@ import TransactionLog from './pages/TransactionLog.jsx'
 import InvoiceDetail from './pages/InvoiceDetail.jsx'
 import BarcodePrintPage from './pages/BarcodePrintPage.jsx'
 import BackupPage from './pages/BackupPage.jsx'
-
-function Home() {
-  return (
-    <div className="page-placeholder">
-      <h1>أهلًا بك</h1>
-      <p>اختر صفحة من القائمة الجانبية للبدء.</p>
-    </div>
-  )
-}
+import Home from './pages/Home.jsx'
 
 export default function App() {
   return (
