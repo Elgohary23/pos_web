@@ -59,6 +59,8 @@ Section "Install"
   File /r "build\stage\server\*"
 
   SetOutPath "$INSTDIR\client"
+  ; Drop stale hashed Vite assets so upgrades don't accumulate dead files
+  RMDir /r "$INSTDIR\client\assets"
   File /r "build\stage\client\*"
 
   SetOutPath "$INSTDIR\tools"
