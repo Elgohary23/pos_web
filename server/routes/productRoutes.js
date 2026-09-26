@@ -1,13 +1,25 @@
 import { Router } from 'express'
 import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
 import { ProductController } from '../controllers/productController.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { AppError } from '../utils/AppError.js'
 
 const router = Router()
 
+// Must be absolute: under the Windows service the working directory is the
+// app root, so a relative './uploads' would write outside server\ and the
+// files would never be served by express.static.
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const uploadsDir = path.join(__dirname, '..', 'uploads')
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true })
+}
+
 const storage = multer.diskStorage({
-  destination: './uploads',
+  destination: uploadsDir,
   filename(req, file, cb) {
     const ext = file.originalname.split('.').pop() || 'png'
     cb(null, `${Date.now()}-${Math.round(Math.random() * 99999)}.${ext}`)

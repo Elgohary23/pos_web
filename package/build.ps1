@@ -1,15 +1,19 @@
-# ============================================================
-#  KasabiPOS Windows installer builder
+﻿# ============================================================
+#  KasabiPOS Windows installer builder (Inno Setup)
 #  Produces package\dist\KasabiPOS-Setup-<version>.exe
 #
-#  Usage:  powershell -ExecutionPolicy Bypass -File build.ps1 [-Version 1.0.0] [-Port 3000] [-SkipClientBuild] [-SkipDownloads]
+#  Usage:
+#    powershell -ExecutionPolicy Bypass -File package\build.ps1 `
+#      [-Version 1.0.0] [-Port 3000] [-SkipClientBuild] [-SkipInnoInstall]
+#
+#  -SkipInnoInstall  fail instead of downloading/installing Inno Setup 6
 # ============================================================
 [CmdletBinding()]
 param(
   [string]$Version = "1.0.0",
   [int]$Port = 3000,
   [switch]$SkipClientBuild,
-  [switch]$SkipDownloads
+  [switch]$SkipInnoInstall
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,6 +23,11 @@ $Root = Split-Path -Parent $Pkg
 $Cache = Join-Path $Pkg "cache"
 $Stage = Join-Path $Pkg "build\stage"
 $Out = Join-Path $Pkg "dist"
+$IsccCandidates = @(
+  "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+  "C:\Program Files\Inno Setup 6\ISCC.exe",
+  (Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\ISCC.exe")
+)
 
 function Write-Step {
   param([string]$Message)
@@ -26,150 +35,180 @@ function Write-Step {
   Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
-function Download {
-  param([string]$Url, [string]$Dest, [string[]]$AltUrls = @())
-  if (Test-Path -LiteralPath $Dest) {
-    Write-Step "Using cached $Dest"
-    return
-  }
-  foreach ($u in @($Url) + $AltUrls) {
-    try {
-      Write-Step "Downloading $u"
-      & curl.exe -L -sS --retry 2 -o $Dest $u
-      if ($LASTEXITCODE -ne 0) { throw "curl exited $LASTEXITCODE" }
-      $bytes = [System.IO.File]::ReadAllBytes($Dest)
-      $isZip = ($bytes.Length -gt 2 -and $bytes[0] -eq 0x50 -and $bytes[1] -eq 0x4B)
-      if ($isZip) {
-        Write-Host "OK ($([Math]::Round($bytes.Length / 1MB, 1)) MB)"
-        return
-      }
-      Remove-Item -LiteralPath $Dest -Force
-      Write-Host "Not a valid zip, trying next URL..."
-    } catch {
-      Remove-Item -LiteralPath $Dest -Force -ErrorAction SilentlyContinue
-      Write-Host "Download failed: $($_.Exception.Message)"
-    }
-  }
-  throw "Could not download $($Dest | Split-Path -Leaf) from any URL"
+function Fail {
+  param([string]$Message)
+  Write-Host ""
+  Write-Host "FAILED: $Message" -ForegroundColor Red
+  exit 1
 }
 
-# --- 1. Build the React client -----------------------------------
+# --------------------------------------------------------------- Inno Setup --
+
+function Resolve-Iscc {
+  foreach ($c in $IsccCandidates) {
+    if (Test-Path -LiteralPath $c) { return $c }
+  }
+  $found = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+  if ($found) { return $found.Source }
+
+  if ($SkipInnoInstall) {
+    Fail "ISCC.exe not found. Install Inno Setup 6 or drop -SkipInnoInstall."
+  }
+
+  Write-Step "Inno Setup 6 not found -- downloading and installing it silently"
+  New-Item -ItemType Directory -Path $Cache -Force | Out-Null
+  $installer = Join-Path $Cache "innosetup-6.7.3.exe"
+  if (-not (Test-Path -LiteralPath $installer)) {
+    $url = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
+    Write-Host "Downloading $url"
+    & curl.exe -L -sS --retry 3 -o $installer $url
+    if ($LASTEXITCODE -ne 0) { Fail "Could not download Inno Setup (curl exit $LASTEXITCODE)" }
+  }
+  $head = [System.IO.File]::ReadAllBytes($installer)
+  if ($head.Length -lt 100000 -or $head[0] -ne 0x4D) {
+    Fail "The downloaded Inno Setup installer is not a valid PE executable."
+  }
+  Write-Step "Running the Inno Setup installer silently"
+  $proc = Start-Process -FilePath $installer `
+    -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/NOICONS" `
+    -Wait -PassThru
+  if ($proc.ExitCode -ne 0) { Fail "Inno Setup installer exited $($proc.ExitCode)" }
+
+  foreach ($c in $IsccCandidates) {
+    if (Test-Path -LiteralPath $c) { return $c }
+  }
+  Fail "Inno Setup installed but ISCC.exe could not be located."
+}
+
+# --- 1. Locating the toolchain ------------------------------------------
+$iscc = Resolve-Iscc
+Write-Step "Using Inno Setup compiler: $iscc"
+$isccVersion = (Get-Item -LiteralPath $iscc).VersionInfo.ProductVersion
+Write-Host "Version: $isccVersion"
+
+# --- 2. Building the React client ---------------------------------------
 if (-not $SkipClientBuild) {
   Push-Location (Join-Path $Root "client")
   try {
     Write-Step "Building client (npm run build)"
     & "npm.cmd" run build
-    if ($LASTEXITCODE -ne 0) { throw "Client build failed (exit $LASTEXITCODE)" }
+    if ($LASTEXITCODE -ne 0) { Fail "Client build failed (exit $LASTEXITCODE)" }
   } finally {
     Pop-Location
   }
 }
 $clientDist = Join-Path $Root "client\dist"
 if (-not (Test-Path -LiteralPath (Join-Path $clientDist "index.html"))) {
-  throw "client\dist\index.html is missing. Run the client build first."
+  Fail "client\dist\index.html is missing. Run the client build first (drop -SkipClientBuild)."
 }
 
-# --- 2. Fresh staging tree ---------------------------------------
+# --- 3. Service-side dependencies (node-windows / WinSW) -----------------
+$serviceSrc = Join-Path $Pkg "service"
+if (-not (Test-Path -LiteralPath (Join-Path $serviceSrc "node_modules\node-windows\bin\winsw\winsw.exe"))) {
+  Write-Step "Installing provisioning dependencies (package\service)"
+  Push-Location $serviceSrc
+  try {
+    & "npm.cmd" install --omit=dev --no-audit --no-fund
+    if ($LASTEXITCODE -ne 0) { Fail "npm install failed in package\service (exit $LASTEXITCODE)" }
+  } finally {
+    Pop-Location
+  }
+}
+
+# --- 4. Fresh staging tree -----------------------------------------------
 Write-Step "Preparing staging tree: $Stage"
 New-Item -ItemType Directory -Path $Cache -Force | Out-Null
 New-Item -ItemType Directory -Path $Out -Force | Out-Null
 if (Test-Path -LiteralPath $Stage) { Remove-Item -LiteralPath $Stage -Recurse -Force }
-foreach ($dir in @("runtime", "server", "client", "tools")) {
+foreach ($dir in @("runtime", "server", "client", "service")) {
   New-Item -ItemType Directory -Path (Join-Path $Stage $dir) -Force | Out-Null
 }
-Copy-Item -LiteralPath (Join-Path $Pkg "provision.js") -Destination (Join-Path $Stage "provision.js")
+# provision.js lives beside its node_modules so `require('node-windows/...')`
+# resolves the same way in the staging tree as it does once installed.
+Copy-Item -LiteralPath (Join-Path $serviceSrc "provision.js") -Destination (Join-Path $Stage "service\provision.js")
 
-# --- 3. Node runtime ---------------------------------------------
-$nodeExe = (Get-Command node.exe -ErrorAction Stop).Source
-Write-Step "Bundling Node runtime: $nodeExe"
+# --- 5. Node runtime ------------------------------------------------------
+$nodeExe = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
+if (-not $nodeExe) { $nodeExe = "C:\Program Files\nodejs\node.exe" }
+if (-not (Test-Path -LiteralPath $nodeExe)) { Fail "node.exe not found on PATH. Install Node.js first." }
+$nodeVer = (& $nodeExe -v).Trim()
+Write-Step "Bundling Node runtime: $nodeExe ($nodeVer)"
 Copy-Item -LiteralPath $nodeExe -Destination (Join-Path $Stage "runtime\node.exe")
 
-# --- 4. Server code + production dependencies ---------------------
+# --- 6. Server code + production dependencies ----------------------------
 Write-Step "Staging server (code + node_modules)"
-$serverSrc = Join-Path $Root "server"
 $serverStage = Join-Path $Stage "server"
-Copy-Item -Path (Join-Path $serverSrc "*") -Destination $serverStage -Recurse -Force
+Copy-Item -Path (Join-Path $Root "server\*") -Destination $serverStage -Recurse -Force
 
-# remove dev/test/deployment artifacts we must never ship
-foreach ($rel in @(
-  "server\tests",
-  "server\backups",
-  "server\uploads",
-  "server\public\barcodes"
-)) {
-  $target = Join-Path $Stage $rel
+# dev/test/deployment artifacts we must never ship
+foreach ($rel in @("tests", "backups", "uploads", "public\barcodes")) {
+  $target = Join-Path $serverStage $rel
   if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
 }
-
-# wildcard sweep for runtime DB/log/test leftovers
+# runtime DB / log / cache leftovers
 Get-ChildItem -LiteralPath $serverStage -Recurse -File -ErrorAction SilentlyContinue |
   Where-Object {
     $_.Name -match '\.sqlite(-wal|-shm|-journal|-pre-restore)?$|\.log$|^\.cache$|\.pre-restore$'
   } |
   Remove-Item -Force -ErrorAction SilentlyContinue
-
-# slim the native-addon payloads: keep only the win32-x64 prebuild we run on
-Get-ChildItem -LiteralPath (Join-Path $serverStage "node_modules\better-sqlite3\prebuilds") -File |
-  Where-Object { $_.Name -ne "win32-x64.node" } |
-  Remove-Item -Force
+# keep only the better-sqlite3 prebuild matching the machine we build on
+$prebuilds = Join-Path $serverStage "node_modules\better-sqlite3\prebuilds"
+if (Test-Path -LiteralPath $prebuilds) {
+  Get-ChildItem -LiteralPath $prebuilds -File |
+    Where-Object { $_.Name -ne "win32-x64.node" } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+}
 Get-ChildItem -LiteralPath (Join-Path $serverStage "node_modules\sqlite3\deps") -File -Filter "*.tar.gz" -ErrorAction SilentlyContinue |
   Remove-Item -Force -ErrorAction SilentlyContinue
+foreach ($junk in @("node_modules\.bin", "node_modules\.package-lock.json")) {
+  $target = Join-Path $serverStage $junk
+  if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+}
 
-# --- 5. Built client ---------------------------------------------
+# --- 7. Built client ------------------------------------------------------
 Write-Step "Staging client build (client\dist)"
 $clientStage = Join-Path $Stage "client"
 Copy-Item -Path (Join-Path $clientDist "*") -Destination $clientStage -Recurse -Force
 if (-not (Test-Path -LiteralPath (Join-Path $clientStage "index.html"))) {
-  throw "Client dist did not stage correctly"
+  Fail "Client dist did not stage correctly"
 }
 
-# --- 6. App icon ------------------------------------------------
+# --- 8. Service wrapper ---------------------------------------------------
+Write-Step "Staging service wrapper (node-windows / WinSW)"
+$serviceStage = Join-Path $Stage "service\node_modules"
+New-Item -ItemType Directory -Path $serviceStage -Force | Out-Null
+Copy-Item -Path (Join-Path $serviceSrc "node_modules\*") -Destination $serviceStage -Recurse -Force
+$winsw = Join-Path $Stage "service\node_modules\node-windows\bin\winsw\winsw.exe"
+if (-not (Test-Path -LiteralPath $winsw)) { Fail "winsw.exe missing from the staged service folder" }
+# yargs is only used by node-windows' CLI entry point, not by the wrapper API
+$junkYargs = Join-Path $Stage "service\node_modules\yargs"
+if (Test-Path -LiteralPath $junkYargs) { Remove-Item -LiteralPath $junkYargs -Recurse -Force }
+
+# --- 9. App icon ----------------------------------------------------------
 Write-Step "Generating app icon"
 & (Join-Path $Pkg "make-icon.ps1") -OutFile (Join-Path $Stage "app.ico")
+if (-not (Test-Path -LiteralPath (Join-Path $Stage "app.ico"))) { Fail "Icon generation failed" }
 
-# --- 7. NSSM (Windows service manager) ---------------------------
-if (-not $SkipDownloads) {
-  Write-Step "Fetching NSSM"
-  $nssmZip = Join-Path $Cache "nssm-2.24.zip"
-  Download -Url "https://nssm.cc/release/nssm-2.24.zip" -Dest $nssmZip
-  $nssmDir = Join-Path $Cache "nssm-2.24"
-  if (-not (Test-Path -LiteralPath (Join-Path $Cache "nssm-2.24\win64\nssm.exe"))) {
-    Expand-Archive -LiteralPath $nssmZip -DestinationPath $Cache -Force
-  }
-  Copy-Item -LiteralPath (Join-Path $Cache "nssm-2.24\win64\nssm.exe") -Destination (Join-Path $Stage "tools\nssm.exe")
-} else {
-  $src = Join-Path $Cache "nssm-2.24\win64\nssm.exe"
-  if (-not (Test-Path -LiteralPath $src)) { throw "NSSM not cached and -SkipDownloads was used" }
-  Copy-Item -LiteralPath $src -Destination (Join-Path $Stage "tools\nssm.exe")
-}
+# --- 10. Compile the installer -------------------------------------------
+$outFile = Join-Path $Out "KasabiPOS-Setup-$Version.exe"
+if (Test-Path -LiteralPath $outFile) { Remove-Item -LiteralPath $outFile -Force }
 
-# --- 8. NSIS compiler ---------------------------------------------
-if (-not $SkipDownloads) {
-  Write-Step "Fetching NSIS 3"
-  $nsisZip = Join-Path $Cache "nsis-3.11.zip"
-  Download `
-    -Url "https://sourceforge.net/projects/nsis/files/NSIS%203/3.11/nsis-3.11.zip/download" `
-    -Dest $nsisZip `
-    -AltUrls @("https://downloads.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11.zip?use_mirror=autoselect")
-  if (-not (Test-Path -LiteralPath (Join-Path $Cache "nsis-3.11\makensis.exe"))) {
-    Expand-Archive -LiteralPath $nsisZip -DestinationPath $Cache -Force
-  }
-}
-$makensis = Join-Path $Cache "nsis-3.11\makensis.exe"
-if (-not (Test-Path -LiteralPath $makensis)) { throw "makensis.exe not found in cache" }
-
-# --- 9. Compile installer -----------------------------------------
-Write-Step "Compiling installer (NSIS)"
+Write-Step "Compiling installer (ISCC) -> $outFile"
 Push-Location $Pkg
 try {
-  & $makensis /V2 "/DAPP_VER=$Version" "/DAPP_PORT=$Port" "kasabi.nsi"
-  if ($LASTEXITCODE -ne 0) { throw "makensis failed (exit $LASTEXITCODE)" }
+  & $iscc `
+    "/DAPP_VER=$Version" `
+    "/DAPP_PORT=$Port" `
+    "/DAPP_PUBLISHER=KasabiPOS" `
+    "kasabi.iss"
+  if ($LASTEXITCODE -ne 0) { Fail "ISCC failed (exit $LASTEXITCODE)" }
 } finally {
   Pop-Location
 }
 
-# --- 10. Report ---------------------------------------------------
-$artifact = Join-Path $Out "KasabiPOS-Setup-$Version.exe"
-if (-not (Test-Path -LiteralPath $artifact)) { throw "Expected installer not found: $artifact" }
-$size = (Get-Item -LiteralPath $artifact).Length / 1MB
-Write-Step "DONE: $artifact ($([Math]::Round($size, 1)) MB)"
+# --- 11. Report -----------------------------------------------------------
+if (-not (Test-Path -LiteralPath $outFile)) { Fail "Expected installer not found: $outFile" }
+$size = (Get-Item -LiteralPath $outFile).Length / 1MB
+Write-Step "DONE: $outFile ($([Math]::Round($size, 1)) MB)"
+Write-Host "On the shop PC run this setup, then use Start Menu > نظام الكاشير"
+Write-Host "Phone access: firewall port $Port is open on the local network."

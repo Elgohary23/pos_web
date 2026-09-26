@@ -1,0 +1,10 @@
+{
+  "name": "kasabi-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dependencies for the KasabiPOS Windows service provisioning script (package/provision.js)",
+  "type": "commonjs",
+  "dependencies": {
+    "node-windows": "1.0.0-beta.8"
+  }
+}

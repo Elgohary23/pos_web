@@ -39,6 +39,10 @@ if (!fs.existsSync(backupsDir)) {
 
 const app = express()
 const port = process.env.PORT || 3000
+// Bind every interface so phones/tablets on the shop Wi-Fi can reach the POS.
+// 0.0.0.0 covers IPv4 LAN traffic; the shortcut still uses localhost, which
+// Windows resolves to 127.0.0.1 and is covered by the same bind.
+const host = process.env.HOST || '0.0.0.0'
 const sessionSecret = process.env.SESSION_SECRET || 'kasabi-dev-secret-change-in-production'
 
 const SqliteStore = connectSqlite3(session)
@@ -99,8 +103,8 @@ const lanAddresses = () =>
     .filter((iface) => iface && iface.family === 'IPv4' && !iface.internal)
     .map((iface) => iface.address)
 
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`)
+app.listen(port, host, () => {
+  console.log(`Server running on http://localhost:${port} (bound to ${host})`)
   for (const address of [...new Set(lanAddresses())]) {
     console.log(`LAN: http://${address}:${port}`)
   }
