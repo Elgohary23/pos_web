@@ -34,16 +34,16 @@ async function main() {
     { route: '/products', action: async () => p.getByRole('button', { name: '+ إضافة منتج' }).click() },
     // نافذة المسح: الكاميرا أولًا
     {
-      route: '/product-lookup',
+      route: '/sales-invoice',
       label: 'qr-camera',
-      action: async () => p.getByRole('button', { name: '📷 مسح' }).click(),
+      action: async () => p.locator('.product-search-row .btn-scan').click(),
     },
     // نافذة المسح: تبويب رفع الصورة
     {
-      route: '/product-lookup',
+      route: '/sales-invoice',
       label: 'qr-file',
       action: async () => {
-        await p.getByRole('button', { name: '📷 مسح' }).click()
+        await p.locator('.product-search-row .btn-scan').click()
         await p.getByRole('tab', { name: /رفع صورة/ }).click()
       },
     },

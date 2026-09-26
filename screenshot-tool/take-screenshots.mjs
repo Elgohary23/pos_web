@@ -9,7 +9,6 @@ const PAGES = [
   { path: '/', name: 'home' },
   { path: '/supply-invoice', name: 'supply-invoice' },
   { path: '/sales-invoice', name: 'sales-invoice' },
-  { path: '/product-lookup', name: 'product-lookup' },
   { path: '/employees', name: 'employees' },
   { path: '/categories', name: 'categories' },
   { path: '/products', name: 'products' },

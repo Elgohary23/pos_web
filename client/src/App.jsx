@@ -8,7 +8,6 @@ import Categories from './pages/Categories.jsx'
 import Products from './pages/Products.jsx'
 import SupplyInvoicePage from './pages/SupplyInvoicePage.jsx'
 import SalesInvoicePage from './pages/SalesInvoicePage.jsx'
-import ProductLookupPage from './pages/ProductLookupPage.jsx'
 import ProductLinkPage from './pages/ProductLinkPage.jsx'
 import TransactionLog from './pages/TransactionLog.jsx'
 import InvoiceDetail from './pages/InvoiceDetail.jsx'
@@ -25,7 +24,6 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="supply-invoice" element={<SupplyInvoicePage />} />
           <Route path="sales-invoice" element={<SalesInvoicePage />} />
-          <Route path="product-lookup" element={<ProductLookupPage />} />
           <Route path="l/:code" element={<ProductLinkPage />} />
           <Route element={<AdminRoute />}>
             <Route path="employees" element={<Employees />} />

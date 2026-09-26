@@ -17,9 +17,6 @@ export default function Sidebar() {
         <NavLink to="/sales-invoice" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
           فاتورة بيع <span className="nav-shortcut">(F4)</span>
         </NavLink>
-        <NavLink to="/product-lookup" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-          الاستعلام عن المنتجات <span className="nav-shortcut">(F6)</span>
-        </NavLink>
         {user?.role === 'admin' && (
           <>
             <NavLink to="/categories" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>

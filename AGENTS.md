@@ -95,7 +95,7 @@ Layered structure:
 - Keep existing `components/` `pages/` `context/`; add `hooks/`, `services/` as features grow.
 - Every feature = loading + success + error + empty states.
 - Dashboard is the logged-in layout (Navbar: user+change password+logout, Sidebar, `<Outlet/>`). Add pages as **nested routes** under it in `client/src/App.jsx`.
-- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice, sales-invoice and product-lookup are accessible to all roles; employees/categories/products/transactions are admin-only.
+- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice, sales-invoice and the product deep link (`/l/:code`) are accessible to all roles; employees/categories/products/transactions are admin-only.
 
 ### Frontend route map (`App.jsx`)
 | Path | Guard | Component |
@@ -104,7 +104,6 @@ Layered structure:
 | `/` | ProtectedRoute | Dashboard → Home |
 | `/supply-invoice` | ProtectedRoute | SupplyInvoicePage |
 | `/sales-invoice` | ProtectedRoute | SalesInvoicePage (has a QR/barcode scan button) |
-| `/product-lookup` | ProtectedRoute | ProductLookupPage (price lookup; admin **and** employee, `F6`) |
 | `/l/:code` | ProtectedRoute | ProductLinkPage (opened by the phone's own camera; see "Scanning from a phone") |
 | `/employees` | ProtectedRoute + AdminRoute | Employees |
 | `/categories` | ProtectedRoute + AdminRoute | Categories |
@@ -113,7 +112,7 @@ Layered structure:
 | `/transactions/:id` | ProtectedRoute + AdminRoute | InvoiceDetail (full invoice + snapshot items, supply or sale) |
 
 ## QR / barcode scanning (`client/src/components/QrScannerDialog.jsx`)
-All decoding happens **in the browser** — images are never uploaded to the server. Two entry points: a scan button on `ProductLookupPage` (`/product-lookup`) and one on `SalesInvoicePage`. In the sales invoice a scan only **selects** the product, fills its retail price and focuses the quantity field — the cashier still presses إضافة.
+All decoding happens **in the browser** — images are never uploaded to the server. The single entry point is the scan button on `SalesInvoicePage` (`.product-search-row .btn-scan`); a scan only **selects** the product, fills its retail price and focuses the quantity field — the cashier still presses إضافة. (The standalone `ProductLookupPage` at `/product-lookup` and its `F6` shortcut were removed — the phone-facing lookup is `/l/:code` instead.)
 
 - **Payload = `products.barcode`.** A scan is resolved by exact barcode; the text search (`?q=`) is the fallback for partial names.
 - **Every scan result is normalised first** by `extractScanCode()` — `client/src/utils/scanCode.js` and its mirror `server/utils/scanCode.js` (keep the two in sync). It accepts a bare code **or** a deep-link URL (`/l/CODE`, `?code=CODE`, `kasabi://product/CODE`) and returns `''` for anything else, so a whole URL is never used as a query. `QrScannerDialog.deliver()` applies it, so consumers only ever see a bare barcode.
@@ -158,7 +157,7 @@ All decoding happens **in the browser** — images are never uploaded to the ser
 Standalone Playwright tooling (own `package.json`, chromium installed). Requires **both** servers running first: server `npm start` (:3000) then client `npm run dev` (:5173). All scripts auto-login with `admin/admin` and set `localStorage['skipPwChangeDialog']=1` (the app's own dialog-suppression flag — do not change the DB password to dodge it).
 
 - `node take-screenshots.mjs` (or `npm run snapshot`) → screenshots for every page × mobile/tablet/desktop into `~/Downloads/screenshots/<timestamp>/`. Timestamped folder + `<name>-<viewport>-<W>x<H>.png` filenames mean runs never overwrite.
-- `node check-responsive.mjs` → 60 overflow checks (5 viewports × 12 pages); **exits 1 if any page overflows horizontally**. Run after ANY UI change.
+- `node check-responsive.mjs` → 55 overflow checks (5 viewports × 11 pages); **exits 1 if any page overflows horizontally**. Run after ANY UI change.
 - `node check-modals.mjs` → verifies every modal fits inside the 375px viewport, including the QR scanner (camera tab + upload tab) and the scan button in the sales invoice. Launches Chromium with a fake camera device so the camera path is really exercised.
 - `node check-table-cards.mjs` → verifies `.data-table-cards` actually renders (header hidden, labels shown, full-width buttons).
 - **All of these talk to whatever `/api` the Vite proxy points at.** If a Windows service (e.g. an installed KasabiPOS) already owns port 3000, they hit *its* database and `check-table-cards` fails on an empty `/products`. Either stop the service or run the dev server on a free port and re-point `client/vite.config.js`; do not "fix" it by editing the check.

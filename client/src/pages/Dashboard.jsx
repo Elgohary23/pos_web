@@ -26,10 +26,6 @@ export default function Dashboard() {
         e.preventDefault()
         navigate('/sales-invoice')
       }
-      if (e.key === 'F6') {
-        e.preventDefault()
-        navigate('/product-lookup')
-      }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)

@@ -2439,184 +2439,16 @@ input[type="file"] {
   padding: 0.4rem 0.6rem;
 }
 
-.product-search-row,
-.lookup-search-row {
+.product-search-row {
   display: flex;
   align-items: stretch;
   gap: 0.5rem;
   min-width: 0;
 }
 
-.product-search-row > .product-search-wrap,
-.lookup-search-row > .lookup-search-input {
+.product-search-row > .product-search-wrap {
   flex: 1 1 auto;
   min-width: 0;
-}
-
-/* ---------- صفحة الاستعلام ---------- */
-.lookup-intro {
-  color: var(--muted);
-  font-size: 0.95rem;
-  margin-bottom: 0.9rem;
-}
-
-.lookup-search-card {
-  margin-bottom: 1rem;
-}
-
-.lookup-search-input {
-  height: 42px;
-}
-
-.lookup-hints {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.lookup-hint-chip {
-  font-size: 0.78rem;
-  color: var(--muted);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.15rem 0.65rem;
-}
-
-.lookup-status {
-  color: var(--muted);
-  font-size: 0.9rem;
-  margin-bottom: 0.8rem;
-}
-
-.lookup-empty {
-  background: var(--panel);
-  border: 1px dashed #cbd5e1;
-  border-radius: 12px;
-  padding: 2rem 1.2rem;
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.95rem;
-}
-
-.lookup-empty-icon {
-  font-size: 1.8rem;
-  margin-bottom: 0.4rem;
-}
-
-/* بطاقة المنتج المؤكد */
-.lookup-feature {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.1rem 1.3rem;
-  margin-bottom: 1rem;
-  display: flex;
-  gap: 1.1rem;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.lookup-feature-img {
-  width: 84px;
-  height: 84px;
-  object-fit: cover;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  flex: 0 0 auto;
-  background: #fff;
-}
-
-.lookup-feature-body {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.lookup-feature-name {
-  font-size: 1.15rem;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.lookup-feature-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.lookup-tag {
-  font-size: 0.75rem;
-  color: #334155;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.1rem 0.6rem;
-}
-
-.lookup-tag-service {
-  color: #7c3aed;
-  background: #f5f3ff;
-  border-color: #ddd6fe;
-}
-
-.lookup-tag-scan {
-  color: #047857;
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-}
-
-.lookup-feature-prices {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 0.5rem;
-}
-
-.lookup-price-box {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  padding: 0.5rem 0.7rem;
-  min-width: 0;
-}
-
-.lookup-price-label {
-  font-size: 0.78rem;
-  color: var(--primary-dark);
-}
-
-.lookup-price-value {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--primary-dark);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.lookup-feature-barcode {
-  font-size: 0.88rem;
-  overflow-wrap: anywhere;
-}
-
-.lookup-code {
-  font-family: Consolas, "Courier New", monospace;
-  direction: ltr;
-  unicode-bidi: embed;
-}
-
-.lookup-results {
-  margin-bottom: 1rem;
-}
-
-.lookup-table .barcode-cell {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.82rem;
-  color: var(--muted);
 }
 
 /* ---------- نافذة المسح ---------- */
@@ -2754,20 +2586,10 @@ input[type="file"] {
 }
 
 @media (max-width: 768px) {
-  .lookup-feature {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .lookup-feature-img {
-    width: 64px;
-    height: 64px;
-  }
-  .product-search-row,
-  .lookup-search-row {
+  .product-search-row {
     flex-wrap: wrap;
   }
-  .product-search-row > .product-search-wrap,
-  .lookup-search-row > .lookup-search-input {
+  .product-search-row > .product-search-wrap {
     flex: 1 1 100%;
   }
   .btn-scan {
@@ -2782,9 +2604,6 @@ input[type="file"] {
 }
 
 @media (max-width: 480px) {
-  .lookup-feature-prices {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .qr-mode-tab {
     font-size: 0.85rem;
     padding: 0.5rem 0.3rem;

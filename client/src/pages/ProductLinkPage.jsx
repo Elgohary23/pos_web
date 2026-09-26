@@ -80,8 +80,8 @@ export default function ProductLinkPage() {
         <div className="page-placeholder">
           <p>رابط المسح غير صالح.</p>
           <p className="muted">تأكد إن الملصق مطبوع من هذا الجهاز.</p>
-          <Link className="btn-secondary" to="/product-lookup">
-            البحث بالباركود
+          <Link className="btn-secondary" to="/">
+            رجوع للرئيسية
           </Link>
         </div>
       )}
@@ -99,8 +99,8 @@ export default function ProductLinkPage() {
         <div className="page-placeholder">
           <p>لا يوجد منتج بهذا الباركود.</p>
           <p className="muted">{code}</p>
-          <Link className="btn-secondary" to="/product-lookup">
-            البحث بالباركود
+          <Link className="btn-secondary" to="/">
+            رجوع للرئيسية
           </Link>
         </div>
       )}
@@ -154,9 +154,6 @@ export default function ProductLinkPage() {
             <button type="button" className="btn-secondary" onClick={load}>
               تحديث
             </button>
-            <Link className="btn-secondary" to="/product-lookup">
-              الاستعلام عن المنتجات
-            </Link>
           </div>
         </>
       )}
