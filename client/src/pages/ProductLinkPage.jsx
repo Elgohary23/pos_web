@@ -108,23 +108,38 @@ export default function ProductLinkPage() {
       {state === 'ready' && product && (
         <>
           <div className="scan-product">
-            {product.imageUrl && (
+            {isAdmin && product.imageUrl && (
               <img className="scan-product-image" src={product.imageUrl} alt={product.name} />
             )}
             <h2 className="scan-product-name">{product.name}</h2>
-            {product.categoryName && (
-              <p className="muted">{product.categoryName}</p>
-            )}
-            <div className="scan-product-price">{fmt(product.retailPrice)}</div>
-            <div className="scan-product-meta">
-              <span>الكمية: {fmt(product.quantity)}</span>
-              {product.barcode && <span>الباركود: {product.barcode}</span>}
+            {isAdmin && product.categoryName && <p className="muted">{product.categoryName}</p>}
+
+            <div className="scan-price-block">
+              <span className="scan-price-label">سعر البيع</span>
+              <span className="scan-product-price">{fmt(product.retailPrice)}</span>
             </div>
+
+            {/* An employee only ever needs the name and the price they can sell
+                at, so costs, stock and the barcode stay behind the admin view. */}
             {isAdmin && (
-              <div className="scan-product-meta">
-                <span>سعر الجملة: {fmt(product.wholesalePrice)}</span>
-                <span>التكلفة: {fmt(product.costPrice)}</span>
-              </div>
+              <dl className="scan-product-details">
+                <div className="scan-product-detail">
+                  <dt>سعر الجملة</dt>
+                  <dd>{fmt(product.wholesalePrice)}</dd>
+                </div>
+                <div className="scan-product-detail">
+                  <dt>التكلفة</dt>
+                  <dd>{fmt(product.costPrice)}</dd>
+                </div>
+                <div className="scan-product-detail">
+                  <dt>الكمية في المخزن</dt>
+                  <dd>{fmt(product.quantity)}</dd>
+                </div>
+                <div className="scan-product-detail">
+                  <dt>الباركود</dt>
+                  <dd>{product.barcode || '—'}</dd>
+                </div>
+              </dl>
             )}
           </div>
 

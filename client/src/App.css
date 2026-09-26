@@ -12,6 +12,8 @@
   --muted: #64748b;
   --primary: #2563eb;
   --primary-dark: #1d4ed8;
+  --primary-soft: rgba(37, 99, 235, 0.1);
+
   --danger: #dc2626;
   --danger-dark: #b91c1c;
   --sidebar-bg: #1e293b;
@@ -2320,13 +2322,15 @@ input[type="file"] {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
   text-align: center;
   border: 1px dashed #94a3b8;
   border-radius: 6px;
-  padding: 6px;
+  padding: 6px 8px;
   break-inside: avoid;
   page-break-inside: avoid;
+  background: #fff;
 }
 
 .barcode-tag img {
@@ -2334,12 +2338,25 @@ input[type="file"] {
   height: 64px;
   object-fit: contain;
   background: #fff;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .barcode-tag-name {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
   line-height: 1.3;
+  color: #0f172a;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.barcode-tag-price {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 1px 0;
 }
 
 .barcode-tag-code {
@@ -2792,11 +2809,25 @@ input[type="file"] {
   width: auto;
 }
 
+.barcode-tag-code128.barcode-tag-full {
+  flex: 1 1 100%;
+  width: 100% !important;
+  max-width: 100%;
+  height: 60px !important;
+  object-fit: contain;
+}
+
 .barcode-tag-qr {
   flex: 0 0 auto;
   width: 64px !important;
   height: 64px !important;
   padding: 2px;
+}
+
+.barcode-tag-qr-large {
+  width: 80px !important;
+  height: 80px !important;
+  margin: 0 auto;
 }
 
 .lan-qr {
@@ -2848,6 +2879,66 @@ input[type="file"] {
   margin: 0.75rem 0;
 }
 
+/* The retail price is the one figure that matters on a phone scan, so it gets
+   its own highlighted chip rather than sitting in the detail list. */
+.scan-price-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 1rem auto 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  width: fit-content;
+  min-width: 180px;
+}
+
+.scan-price-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.scan-price-block .scan-product-price {
+  margin: 0;
+}
+
+/* Admin-only: the full picture, stacked and label/value aligned. */
+.scan-product-details {
+  margin: 1rem 0 0;
+  border-top: 1px solid var(--border);
+  text-align: start;
+}
+
+.scan-product-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.55rem 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.scan-product-detail dt {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.scan-product-detail dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.scan-product-detail:last-child dd {
+  direction: ltr;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.85rem;
+}
+
+
 .scan-product-meta {
   display: flex;
   flex-wrap: wrap;
@@ -2872,6 +2963,11 @@ input[type="file"] {
   }
   .scan-product-price {
     font-size: 2.25rem;
+  }
+  .scan-price-block {
+    min-width: 0;
+    width: 100%;
+    padding: 0.6rem 1rem;
   }
   .scan-landing-actions {
     flex-direction: column;
