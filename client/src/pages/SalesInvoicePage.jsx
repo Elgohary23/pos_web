@@ -4,6 +4,7 @@ import { api } from '../api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import MoneyInput from '../components/MoneyInput.jsx'
 import IntInput from '../components/IntInput.jsx'
+import QrScannerDialog from '../components/QrScannerDialog.jsx'
 
 const fmt = (n) => Number(n).toFixed(2)
 
@@ -31,6 +32,9 @@ export default function SalesInvoicePage() {
 
   const [qty, setQty] = useState('1')
   const [unitPrice, setUnitPrice] = useState('')
+
+  const [scanOpen, setScanOpen] = useState(false)
+  const qtyInputRef = useRef(null)
 
   const [lines, setLines] = useState([])
   const [selected, setSelected] = useState(() => new Set())
@@ -113,6 +117,40 @@ export default function SalesInvoicePage() {
   const selectCustomer = (c) => {
     setCustomerName(c.name)
     if (c.phone) setCustomerPhone(c.phone)
+  }
+
+  const applyScannedProduct = (p) => {
+    setSearch(p.name)
+    setSearchOpen(false)
+    setHighlight(-1)
+    setUnitPrice(String(Number(p.retailPrice) || 0))
+    setSuccess(`تم قراءة «${p.name}» — حدد الكمية ثم اضغط إضافة`)
+    setTimeout(() => qtyInputRef.current?.focus(), 0)
+  }
+
+  // نتيجة المسح: نطابق الباركود بالضبط، أولًا من المنتجات المحمّلة ثم من الخادم
+  const handleScanResult = async (code) => {
+    setScanOpen(false)
+    setError('')
+    setSuccess('')
+
+    const local = products.find((p) => p.barcode && String(p.barcode).toLowerCase() === code.toLowerCase())
+    if (local) {
+      applyScannedProduct(local)
+      return
+    }
+
+    try {
+      const res = await api.get(`/api/products?active=1&barcode=${encodeURIComponent(code)}`)
+      const found = (res.products || [])[0]
+      if (found) {
+        applyScannedProduct(found)
+        return
+      }
+      setError(`لا يوجد منتج بهذا الكود: ${code}`)
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   // ----- computed totals -----
@@ -387,39 +425,45 @@ export default function SalesInvoicePage() {
           <div className="invoice-item-fields">
             <div className="field-group">
               <span className="field-label">بحث المنتج (الاسم أو الباركود)</span>
-              <div className="product-search-wrap" ref={searchRef}>
-                <input
-                  type="text"
-                  className="autocomplete-input product-search-input"
-                  value={search}
-                  placeholder="اكتب اسم المنتج أو الباركود..."
-                  onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); setHighlight(-1) }}
-                  onFocus={() => setSearchOpen(true)}
-                  onKeyDown={handleSearchKey}
-                  autoComplete="off"
-                />
-                {searchOpen && filteredProducts.length > 0 && (
-                  <ul className="autocomplete-list product-search-list">
-                    {filteredProducts.slice(0, 10).map((p, i) => (
-                      <li
-                        key={p.id}
-                        className={i === highlight ? 'autocomplete-item active product-search-item' : 'autocomplete-item product-search-item'}
-                        onMouseDown={() => selectProduct(p)}
-                      >
-                        <span className="product-search-name">{p.name}</span>
-                        <span className="product-search-meta">
-                          {p.barcode ? <span className="muted">{p.barcode}</span> : ''}
-                          <span className="product-search-price">{Number(p.retailPrice).toFixed(2)}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+              <div className="product-search-row">
+                <div className="product-search-wrap" ref={searchRef}>
+                  <input
+                    type="text"
+                    className="autocomplete-input product-search-input"
+                    value={search}
+                    placeholder="اكتب اسم المنتج أو الباركود..."
+                    onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); setHighlight(-1) }}
+                    onFocus={() => setSearchOpen(true)}
+                    onKeyDown={handleSearchKey}
+                    autoComplete="off"
+                  />
+                  {searchOpen && filteredProducts.length > 0 && (
+                    <ul className="autocomplete-list product-search-list">
+                      {filteredProducts.slice(0, 10).map((p, i) => (
+                        <li
+                          key={p.id}
+                          className={i === highlight ? 'autocomplete-item active product-search-item' : 'autocomplete-item product-search-item'}
+                          onMouseDown={() => selectProduct(p)}
+                        >
+                          <span className="product-search-name">{p.name}</span>
+                          <span className="product-search-meta">
+                            {p.barcode ? <span className="muted">{p.barcode}</span> : ''}
+                            <span className="product-search-price">{Number(p.retailPrice).toFixed(2)}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <button type="button" className="btn-secondary btn-scan" onClick={() => setScanOpen(true)}>
+                  📷 مسح
+                </button>
               </div>
+              <span className="hint">أو امسح رمز الـ QR / الباركود مباشرة بالزر المجاور</span>
             </div>
             <div className="field-group">
               <span className="field-label">الكمية</span>
-              <IntInput value={qty} onChange={setQty} placeholder="1" />
+              <IntInput value={qty} onChange={setQty} placeholder="1" inputRef={qtyInputRef} />
             </div>
             <div className="field-group">
               <span className="field-label">سعر الوحدة</span>
@@ -512,6 +556,14 @@ export default function SalesInvoicePage() {
       <button type="button" className="btn-primary btn-save-invoice" onClick={handleSave} disabled={saving}>
         {saving ? 'جارٍ الحفظ...' : '💾 حفظ فاتورة البيع'}
       </button>
+
+      {scanOpen && (
+        <QrScannerDialog
+          title="مسح رمز المنتج"
+          onResult={handleScanResult}
+          onClose={() => setScanOpen(false)}
+        />
+      )}
     </div>
   )
 }

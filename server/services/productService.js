@@ -32,14 +32,33 @@ function ensureUniqueBarcode(value) {
   }
 }
 
+const MAX_BARCODE_LENGTH = 64
+
+// Barcode lookup filter (exact match). The value comes from a scanner, so it can be
+// arbitrary text - reject anything that cannot be a stored barcode instead of building
+// a query from it.
+function normalizeBarcodeFilter(value) {
+  if (value === undefined || value === null) return ''
+  const clean = String(value).trim()
+  if (!clean) return ''
+  if (clean.length > MAX_BARCODE_LENGTH) {
+    throw new AppError('VALIDATION_ERROR', 'الكود المُدخل أطول من الحد المسموح (64 حرفًا)')
+  }
+  if (/[\u0000-\u001F\u007F]/.test(clean)) {
+    throw new AppError('VALIDATION_ERROR', 'الكود المُدخل يحتوي على رموز غير مسموحة')
+  }
+  return clean
+}
+
 export const ProductService = {
-  list({ q, categoryId, active = false, limit = null } = {}) {
+  list({ q, categoryId, active = false, barcode, limit = null } = {}) {
     const cleanCategory =
       categoryId !== undefined && categoryId !== null && categoryId !== '' ? Number(categoryId) : null
     return ProductRepository.list({
       q: String(q ?? '').trim(),
       categoryId: cleanCategory,
       active,
+      barcode: normalizeBarcodeFilter(barcode),
       limit,
     })
   },

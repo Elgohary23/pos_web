@@ -93,7 +93,7 @@ Layered structure:
 - Keep existing `components/` `pages/` `context/`; add `hooks/`, `services/` as features grow.
 - Every feature = loading + success + error + empty states.
 - Dashboard is the logged-in layout (Navbar: user+change password+logout, Sidebar, `<Outlet/>`). Add pages as **nested routes** under it in `client/src/App.jsx`.
-- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice and sales-invoice are accessible to all roles; employees/categories/products/transactions are admin-only.
+- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice, sales-invoice and product-lookup are accessible to all roles; employees/categories/products/transactions are admin-only.
 
 ### Frontend route map (`App.jsx`)
 | Path | Guard | Component |
@@ -101,12 +101,25 @@ Layered structure:
 | `/login` | none | Login |
 | `/` | ProtectedRoute | Dashboard → Home |
 | `/supply-invoice` | ProtectedRoute | SupplyInvoicePage |
-| `/sales-invoice` | ProtectedRoute | SalesInvoicePage |
+| `/sales-invoice` | ProtectedRoute | SalesInvoicePage (has a QR/barcode scan button) |
+| `/product-lookup` | ProtectedRoute | ProductLookupPage (price lookup; admin **and** employee, `F6`) |
 | `/employees` | ProtectedRoute + AdminRoute | Employees |
 | `/categories` | ProtectedRoute + AdminRoute | Categories |
 | `/products` | ProtectedRoute + AdminRoute | Products |
 | `/transactions` | ProtectedRoute + AdminRoute | TransactionLog (daily log, `?date=YYYY-MM-DD`, shift/account toggle) |
 | `/transactions/:id` | ProtectedRoute + AdminRoute | InvoiceDetail (full invoice + snapshot items, supply or sale) |
+
+## QR / barcode scanning (`client/src/components/QrScannerDialog.jsx`)
+All decoding happens **in the browser** — images are never uploaded to the server. Two entry points: a scan button on `ProductLookupPage` (`/product-lookup`) and one on `SalesInvoicePage`. In the sales invoice a scan only **selects** the product, fills its retail price and focuses the quantity field — the cashier still presses إضافة.
+
+- **Payload = `products.barcode`.** A scan is resolved by exact barcode; the text search (`?q=`) is the fallback for partial names.
+- **Camera needs a secure context** — `localhost` or HTTPS. Reaching the shop PC over its LAN IP from a phone is *insecure*, so the browser blocks the camera there; the dialog says so and the **upload-image tab is the working fallback on phones**. No HTTPS cert is shipped yet.
+- **Do not replace the two-decoder file path with a single one.** `html5-qrcode`'s `scanFile()` reads **1D barcodes only** and silently fails on every QR image (verified: valid 21×21 QR → `NotFoundException`). ZXing's own QR *detector* is also unreliable on real-world images even though it reads Code128 fine. So the upload path runs **ZXing `BrowserMultiFormatReader` first (all 1D barcodes), then `jsQR` (QR)**. Verified working for QR (incl. inverted / no quiet zone) and Code128/EAN.
+- Images are flattened onto **white** before analysis: transparent PNGs (alpha read as black) break detection.
+- `Html5Qrcode.clear()` is **synchronous** — never `.catch()` it.
+- The reader `<div>` stays mounted in both tabs (hidden via `.qr-reader-hidden`); the camera panel around it is conditional. Unmounting it mid-startup is what produces a benign `play() ... interrupted` unhandled rejection in the console.
+- Libraries are **dynamic imports** (`html5-qrcode`, `@zxing/library`, `jsqr`) so they build as separate chunks and stay out of the main bundle.
+- The reader element id is unique per dialog instance (`dialogSeq`) because the libraries locate elements by id.
 
 ## Responsive UI (must-follow)
 **Never finish a UI page/view/component without confirming it is responsive.** The product ships on phones/tablets too; a page that crops on mobile is a bug, not a TODO.
@@ -128,9 +141,9 @@ Layered structure:
 ## Screenshot & responsiveness verification (`screenshot-tool/`)
 Standalone Playwright tooling (own `package.json`, chromium installed). Requires **both** servers running first: server `npm start` (:3000) then client `npm run dev` (:5173). All scripts auto-login with `admin/admin` and set `localStorage['skipPwChangeDialog']=1` (the app's own dialog-suppression flag — do not change the DB password to dodge it).
 
-- `node take-screenshots.mjs` (or `npm run snapshot`) → 21 screenshots (7 pages × mobile/tablet/desktop) into `~/Downloads/screenshots/<timestamp>/`. Timestamped folder + `<name>-<viewport>-<W>x<H>.png` filenames mean runs never overwrite.
-- `node check-responsive.mjs` → 35 overflow checks (5 viewports × 7 pages); **exits 1 if any page overflows horizontally**. Run after ANY UI change.
-- `node check-modals.mjs` → verifies every modal fits inside the 375px viewport.
+- `node take-screenshots.mjs` (or `npm run snapshot`) → screenshots for every page × mobile/tablet/desktop into `~/Downloads/screenshots/<timestamp>/`. Timestamped folder + `<name>-<viewport>-<W>x<H>.png` filenames mean runs never overwrite.
+- `node check-responsive.mjs` → 55 overflow checks (5 viewports × 11 pages); **exits 1 if any page overflows horizontally**. Run after ANY UI change.
+- `node check-modals.mjs` → verifies every modal fits inside the 375px viewport, including the QR scanner (camera tab + upload tab) and the scan button in the sales invoice. Launches Chromium with a fake camera device so the camera path is really exercised.
 - `node check-table-cards.mjs` → verifies `.data-table-cards` actually renders (header hidden, labels shown, full-width buttons).
 - Images go to the OS Downloads dir — never committed. Playwright browsers live in `ms-playwright` cache (outside repo).
 

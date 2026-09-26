@@ -20,7 +20,7 @@ export const ProductRepository = {
     return db.prepare('SELECT * FROM products WHERE name = ? COLLATE NOCASE').get(name)
   },
 
-  list({ q = '', categoryId = null, active = false, limit = null } = {}) {
+  list({ q = '', categoryId = null, active = false, barcode = '', limit = null } = {}) {
     let sql = `SELECT p.*, c.name AS category_name
                FROM products p
                LEFT JOIN categories c ON c.id = p.category_id`
@@ -33,6 +33,12 @@ export const ProductRepository = {
     }
     if (active) {
       where.push('p.is_active = 1')
+    }
+    if (barcode) {
+      // NOCASE لأن الباركود المولّد من التوريد سداسي عشر بأحرف كبيرة (A-F)،
+      // وقد يرسل الماسح أو الـ QR نفس الكود بأحرف صغيرة
+      where.push('p.barcode = ? COLLATE NOCASE')
+      params.push(barcode)
     }
     if (q) {
       where.push('(p.name LIKE ? OR p.barcode LIKE ?)')

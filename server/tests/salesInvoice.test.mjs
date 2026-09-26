@@ -1,7 +1,10 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import { fileURLToPath } from 'url'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const barcodesDir = path.join(__dirname, '..', 'public', 'barcodes')
 const tempDb = path.join(os.tmpdir(), `sales_test-${process.pid }.sqlite`)
 
 process.env.DB_PATH = tempDb
@@ -19,6 +22,9 @@ const { ProductRepository } = await import('../repositories/productRepository.js
 const { SupplyService } = await import('../services/supplyService.js')
 const { TransactionLogService } = await import('../services/transactionLogService.js')
 const { round2 } = await import('../utils/money.js')
+
+// صور الباركود التي يولّدها هذا الاختبار — نمسحها في النهاية فقط
+const pngsCreated = []
 
 let passed = 0
 let failed = 0
@@ -47,7 +53,7 @@ const defaultCat = db.prepare("SELECT id FROM categories WHERE name = 'عام'")
 
 // ---------- Scenario 1: create products with stock via supply ----------
 console.log('\nScenario 1: تجهيز مخزون')
-await SupplyService.createSupplyInvoice({
+const supplyRes = await SupplyService.createSupplyInvoice({
   kind: 'supply',
   items: [
     { name: 'كتاب الرياضيات', unit_cost: 20, retail_price: 35, quantity: 50 },
@@ -55,6 +61,10 @@ await SupplyService.createSupplyInvoice({
     { name: 'قلم حبر', unit_cost: 3, retail_price: 7, quantity: 200 },
   ],
 }, admin)
+
+for (const np of supplyRes.new_products) {
+  pngsCreated.push(path.join(barcodesDir, `${np.barcode}.png`))
+}
 
 const book = ProductRepository.findByName('كتاب الرياضيات')
 const notebook = ProductRepository.findByName('دفتر سلك')
@@ -344,12 +354,11 @@ ok('البند يحمل unit_price', details.items[0].unit_price === 7)
 ok('البند يحمل cost_price_at_sale', Number.isFinite(details.items[0].cost_price_at_sale))
 
 // cleanup generated barcode pngs
-try {
-  const pngDir = path.join(path.dirname(tempDb), '..', 'POS_WEB', 'server', 'public', 'barcodes')
-  if (fs.existsSync(pngDir)) {
-    for (const f of fs.readdirSync(pngDir)) fs.unlinkSync(path.join(pngDir, f))
-  }
-} catch { /* ignore */ }
+// نمسح فقط الأكواد التي أنشأها هذا الاختبار — المسار القديم كان يشير إلى مجلد
+// صور الباركود الحقيقي داخل المستودع، فكان خطرًا على بيانات التشغيل.
+for (const f of pngsCreated) {
+  if (fs.existsSync(f)) fs.unlinkSync(f)
+}
 
 db.close()
 

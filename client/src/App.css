@@ -1462,7 +1462,8 @@ input[type="file"] {
    (Employees & Products pages)
    ===================================================== */
 @media (max-width: 768px) {
-  .table-wrap.data-table-cards {
+  /* .data-table-cards يقع على الجدول نفسه، والغلاف هو .table-wrap */
+  .table-wrap:has(.data-table-cards) {
     overflow: visible;
     border: none;
     background: transparent;
@@ -2396,5 +2397,379 @@ input[type="file"] {
   }
   .barcode-tag img {
     height: 58px;
+  }
+}
+
+/* =====================================================
+   الاستعلام عن المنتجات + قارئ الـ QR / الباركود
+   ===================================================== */
+
+/* زر المسح المجاور لحقل البحث (فاتورة البيع وصفحة الاستعلام) */
+.btn-scan {
+  flex: 0 0 auto;
+  min-width: 84px;
+  height: 42px;
+  padding: 0.4rem 0.8rem;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.btn-clear {
+  min-width: 42px;
+  padding: 0.4rem 0.6rem;
+}
+
+.product-search-row,
+.lookup-search-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.product-search-row > .product-search-wrap,
+.lookup-search-row > .lookup-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---------- صفحة الاستعلام ---------- */
+.lookup-intro {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-bottom: 0.9rem;
+}
+
+.lookup-search-card {
+  margin-bottom: 1rem;
+}
+
+.lookup-search-input {
+  height: 42px;
+}
+
+.lookup-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.lookup-hint-chip {
+  font-size: 0.78rem;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.65rem;
+}
+
+.lookup-status {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.8rem;
+}
+
+.lookup-empty {
+  background: var(--panel);
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 2rem 1.2rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.lookup-empty-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.4rem;
+}
+
+/* بطاقة المنتج المؤكد */
+.lookup-feature {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem 1.3rem;
+  margin-bottom: 1rem;
+  display: flex;
+  gap: 1.1rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.lookup-feature-img {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+  background: #fff;
+}
+
+.lookup-feature-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.lookup-feature-name {
+  font-size: 1.15rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.lookup-feature-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.lookup-tag {
+  font-size: 0.75rem;
+  color: #334155;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+}
+
+.lookup-tag-service {
+  color: #7c3aed;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+.lookup-tag-scan {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.lookup-feature-prices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.5rem;
+}
+
+.lookup-price-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
+  min-width: 0;
+}
+
+.lookup-price-label {
+  font-size: 0.78rem;
+  color: var(--primary-dark);
+}
+
+.lookup-price-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.lookup-feature-barcode {
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.lookup-code {
+  font-family: Consolas, "Courier New", monospace;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+.lookup-results {
+  margin-bottom: 1rem;
+}
+
+.lookup-table .barcode-cell {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* ---------- نافذة المسح ---------- */
+.qr-modal {
+  max-width: 520px;
+}
+
+.qr-mode-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.qr-mode-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.qr-mode-tab.active {
+  border-color: var(--primary);
+  background: #eff6ff;
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
+/* منطقة العرض التي تحقن فيها المكتبة عنصر الفيديو */
+.qr-reader-region {
+  width: 100%;
+  max-width: 420px;
+  min-height: 220px;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f172a;
+  position: relative;
+}
+
+.qr-reader-region video {
+  display: block;
+  width: 100% !important;
+  max-width: 100%;
+  border-radius: 12px;
+  background: #0f172a;
+}
+
+.qr-reader-region img,
+.qr-reader-region canvas {
+  max-width: 100%;
+}
+
+.qr-reader-region > div {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* القارئ يبقى في DOM حتى في وضع «رفع صورة» حتى لا يُحذف عنصر الفيديو
+   أثناء تشغيله — يختفي بصريًا فقط. */
+.qr-reader-hidden {
+  display: none !important;
+}
+
+.qr-hidden-reader {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.qr-status {
+  margin-top: 0.7rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.qr-status-ok {
+  color: #047857;
+}
+
+.qr-error {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  color: var(--danger-dark);
+  font-size: 0.88rem;
+}
+
+.qr-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.qr-hint {
+  margin-top: 0.7rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.qr-file-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.qr-file-label {
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.qr-file-input {
+  width: 100%;
+  font-size: 0.9rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+@media (max-width: 768px) {
+  .lookup-feature {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lookup-feature-img {
+    width: 64px;
+    height: 64px;
+  }
+  .product-search-row,
+  .lookup-search-row {
+    flex-wrap: wrap;
+  }
+  .product-search-row > .product-search-wrap,
+  .lookup-search-row > .lookup-search-input {
+    flex: 1 1 100%;
+  }
+  .btn-scan {
+    flex: 1 1 0;
+  }
+  .btn-clear {
+    flex: 0 0 auto;
+  }
+  .qr-reader-region {
+    min-height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lookup-feature-prices {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .qr-mode-tab {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.3rem;
   }
 }

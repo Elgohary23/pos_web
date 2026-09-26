@@ -3,8 +3,14 @@ import { publicProduct } from '../utils/helpers.js'
 
 export const ProductController = {
   list(req, res) {
-    const { q, categoryId, active, limit } = req.query || {}
-    const products = ProductService.list({ q, categoryId, active: active === '1', limit }).map(publicProduct)
+    const { q, categoryId, active, barcode, limit } = req.query || {}
+    const products = ProductService.list({
+      q,
+      categoryId,
+      active: active === '1',
+      barcode,
+      limit,
+    }).map(publicProduct)
     res.json({ success: true, data: { products }, message: 'تم جلب المنتجات' })
   },
 

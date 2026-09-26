@@ -1,10 +1,11 @@
-export default function IntInput({ value, onChange, placeholder, disabled, min = 1 }) {
+export default function IntInput({ value, onChange, placeholder, disabled, min = 1, inputRef }) {
   const handleChange = (e) => {
     onChange(e.target.value.replace(/\D/g, ''))
   }
 
   return (
     <input
+      ref={inputRef}
       type="text"
       inputMode="numeric"
       className="int-input"
