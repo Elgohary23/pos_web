@@ -1,6 +1,7 @@
 import { ProductRepository } from '../repositories/productRepository.js'
 import { CategoryRepository } from '../repositories/categoryRepository.js'
 import { AppError } from '../utils/AppError.js'
+import { extractScanCode } from '../utils/scanCode.js'
 
 function toPositivePrice(value, fieldName) {
   const num = Number(value)
@@ -33,21 +34,29 @@ function ensureUniqueBarcode(value) {
 }
 
 const MAX_BARCODE_LENGTH = 64
+// Checked on the raw input, before any URL parsing: the WHATWG URL parser
+// silently strips tabs and newlines, which would otherwise turn a malformed
+// scan into a valid-looking code.
+const CONTROL_CHARS = /[\u0000-\u001F\u007F]/
 
-// Barcode lookup filter (exact match). The value comes from a scanner, so it can be
-// arbitrary text - reject anything that cannot be a stored barcode instead of building
-// a query from it.
+// Barcode lookup filter (exact match). The value can arrive straight from a
+// desktop scanner (raw code) or from a phone camera that opened our deep link,
+// so it is normalised down to a bare code first. Anything that cannot be a
+// stored barcode is dropped rather than turned into a query.
 function normalizeBarcodeFilter(value) {
   if (value === undefined || value === null) return ''
-  const clean = String(value).trim()
+  const raw = String(value)
+  if (CONTROL_CHARS.test(raw)) {
+    throw new AppError('VALIDATION_ERROR', 'الكود المُدخل يحتوي على رموز غير مسموحة')
+  }
+  const code = extractScanCode(raw)
+  if (code) return code
+  const clean = raw.trim()
   if (!clean) return ''
   if (clean.length > MAX_BARCODE_LENGTH) {
     throw new AppError('VALIDATION_ERROR', 'الكود المُدخل أطول من الحد المسموح (64 حرفًا)')
   }
-  if (/[\u0000-\u001F\u007F]/.test(clean)) {
-    throw new AppError('VALIDATION_ERROR', 'الكود المُدخل يحتوي على رموز غير مسموحة')
-  }
-  return clean
+  throw new AppError('VALIDATION_ERROR', 'الكود المُدخل لا يمثل باركود منتج')
 }
 
 export const ProductService = {

@@ -8,5 +8,6 @@ const router = Router()
 router.use(requireAuth, requireAdmin)
 
 router.post('/ensure', asyncHandler(BarcodeController.ensure))
+router.get('/qr.png', asyncHandler(BarcodeController.qrPng))
 
 export default router

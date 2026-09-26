@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { extractScanCode } from '../utils/scanCode.js'
 import MoneyInput from '../components/MoneyInput.jsx'
 import IntInput from '../components/IntInput.jsx'
 import QrScannerDialog from '../components/QrScannerDialog.jsx'
@@ -152,6 +153,18 @@ export default function SalesInvoicePage() {
       setError(err.message)
     }
   }
+
+  // The phone's product page links here with ?code=, so a scan followed by
+  // "بيع هذا المنتج" lands on the item already priced and focused. The param is
+  // cleared afterwards: coming back to the page must not re-trigger the lookup.
+  useEffect(() => {
+    const code = extractScanCode(new URLSearchParams(window.location.search).get('code'))
+    if (!code) return
+    handleScanResult(code)
+    const url = new URL(window.location.href)
+    url.searchParams.delete('code')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`)
+  }, [])
 
   // ----- computed totals -----
   const percent = discountType === 'free' ? 100 : discountPercent === '' ? 0 : Number(discountPercent) || 0

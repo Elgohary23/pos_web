@@ -2773,3 +2773,112 @@ input[type="file"] {
     padding: 0.5rem 0.3rem;
   }
 }
+
+/* ---------------------------------------------- QR deep links from a phone */
+/* A printed label shows a Code128 (read by the desktop scanner) next to a QR
+   (opened by the phone's own camera app), so both symbols sit side by side. */
+.barcode-tag-symbols {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.barcode-tag-code128 {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 64px !important;
+  width: auto;
+}
+
+.barcode-tag-qr {
+  flex: 0 0 auto;
+  width: 64px !important;
+  height: 64px !important;
+  padding: 2px;
+}
+
+.lan-qr {
+  display: block;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto 0.75rem;
+  background: #fff;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+/* The page a phone lands on after reading the printed QR. */
+.scan-landing-code {
+  font-family: Consolas, "Courier New", monospace;
+  direction: ltr;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.scan-product {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.scan-product-image {
+  width: 100%;
+  max-width: 180px;
+  height: 180px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.scan-product-name {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+}
+
+.scan-product-price {
+  font-size: 2.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+  margin: 0.75rem 0;
+}
+
+.scan-product-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.25rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.scan-landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+@media (max-width: 480px) {
+  .scan-product {
+    padding: 1.1rem;
+  }
+  .scan-product-price {
+    font-size: 2.25rem;
+  }
+  .scan-landing-actions {
+    flex-direction: column;
+  }
+  .scan-landing-actions .btn-primary,
+  .scan-landing-actions .btn-secondary,
+  .scan-landing-actions a {
+    width: 100%;
+  }
+}

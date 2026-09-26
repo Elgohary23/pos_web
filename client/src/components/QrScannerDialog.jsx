@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { extractScanCode } from '../utils/scanCode.js'
 
 // المكتبات ثقيلة (~250 كيلوبايت لكل واحدة) ولا نحتاجها إلا عند المسح فعليًا،
 // فحمّلها عند الطلب حتى لا تدخل في الحزمة الأساسية.
@@ -110,7 +111,10 @@ export default function QrScannerDialog({ onResult, onClose, title = 'مسح ا�
 
   const deliver = useCallback(
     (text) => {
-      const code = String(text ?? '').trim()
+      // A printed label carries both a Code128 (raw code) and a QR (deep link),
+      // so the payload is normalised before it leaves the dialog - callers only
+      // ever deal with a bare barcode.
+      const code = extractScanCode(text)
       if (!code || deliveredRef.current) return
       deliveredRef.current = true
       onResult(code)

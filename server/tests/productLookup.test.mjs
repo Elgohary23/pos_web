@@ -15,6 +15,8 @@ const { default: db } = await import('../database/db.js')
 const { ProductService } = await import('../services/productService.js')
 const { ProductRepository } = await import('../repositories/productRepository.js')
 const { CategoryRepository } = await import('../repositories/categoryRepository.js')
+const { BarcodeService } = await import('../services/barcodeService.js')
+const { extractScanCode } = await import('../utils/scanCode.js')
 
 let passed = 0
 let failed = 0
@@ -29,6 +31,14 @@ async function expectError(fn, code, label) {
     failed += 1
   } catch (err) {
     ok(`${label} -> [${err.code}] ${err.message}`, err.code === code)
+  }
+}
+async function rejects(fn) {
+  try {
+    await fn()
+    return false
+  } catch {
+    return true
   }
 }
 
@@ -138,11 +148,50 @@ console.log('\nScenario 4: التحقق من مدخلات الفلتر')
   await expectError(() => ProductService.list({ barcode: 'AB\t12' }), 'VALIDATION_ERROR', 'باركود برموز تحكم')
 }
 
-// ---------- Scenario 5: البحث لا يعدّل البيانات ----------
-console.log('\nScenario 5: البحث للقراءة فقط')
+// ---------- Scenario 5: الروابط القادمة من كاميرا الموبايل ----------
+// QR المطبوع يحمل رابطًا كاملًا، فيصل الكود إلى الفلتر كـ URL لا كود خام.
+console.log('\nScenario 5: تحويل روابط الماسح إلى كود منتج')
+{
+  const cases = [
+    ['كود خام', '065828401337', '065828401337'],
+    ['رابط deep link', 'http://192.168.1.5:3000/l/065828401337', '065828401337'],
+    ['رابط deep link بدون http', '192.168.1.5:3000/l/28241', ''],
+    ['رابط مع كود مشفّر', 'http://10.0.0.4:3000/l/0658A1B2C3D4', '0658A1B2C3D4'],
+    ['رابط مع مسار بعد الكود', 'http://10.0.0.4:3000/l/28241/xyz', '28241'],
+    ['رابط بصيغة الاستعلام', 'http://10.0.0.4:3000/l?code=317297160722', '317297160722'],
+    ['رابط بصيغة الاستعلام (barcode)', 'http://10.0.0.4:3000/?barcode=28241', '28241'],
+    ['مخطط مخصص', 'kasabi://product/28241', '28241'],
+    ['رابط خارجي غير متعلق بنا', 'https://example.com/some/page', 'page'],
+    ['نص عربي', 'منتج', ''],
+    ['فارغ', '   ', ''],
+    ['null', null, ''],
+  ]
+  for (const [label, input, expected] of cases) {
+    ok(`extractScanCode(${label}) = ${JSON.stringify(expected)}`, extractScanCode(input) === expected)
+  }
+
+  ok('الرابط يطابق نفس المنتج مثل الكود الخام',
+    ProductService.list({ active: true, barcode: 'http://192.168.1.5:3000/l/065828401337' })[0]?.id === coffee.id)
+  ok('رابط deep link بكود مشفّر يلاقي منتج الكود',
+    ProductService.list({ active: true, barcode: 'http://10.0.0.4:3000/l/0658A1B2C3D4' })[0]?.id === hexProduct.id)
+  ok('رابط برمز تحكم يُرفض كفلتر',
+    await rejects(() => ProductService.list({ barcode: 'http://10.0.0.4:3000/l/AB\t12' })))
+  ok('رابط طويل جدًا يُرفض كفلتر',
+    await rejects(() => ProductService.list({ barcode: `http://10.0.0.4/l/${'a'.repeat(3000)}` })))
+
+  ok('deepLink يبني رابط صحيح', BarcodeService.deepLink('065828401337', 'http://192.168.1.5:3000')
+    === 'http://192.168.1.5:3000/l/065828401337')
+  ok('deepLink يتجاهل الشرطة الأخيرة', BarcodeService.deepLink('28241', 'http://192.168.1.5:3000/')
+    === 'http://192.168.1.5:3000/l/28241')
+  ok('deepLink بدون أصل يرجع نص فاضي', BarcodeService.deepLink('28241', '') === '')
+}
+
+// ---------- Scenario 6: البحث لا يعدّل البيانات ----------
+console.log('\nScenario 6: البحث للقراءة فقط')
 {
   const before = ProductService.list({}).map((p) => `${p.id}:${p.quantity}`).sort().join('|')
   ProductService.list({ active: true, barcode: '065828401337' })
+  ProductService.list({ active: true, barcode: 'http://192.168.1.5:3000/l/065828401337' })
   ProductService.list({ active: true, q: 'منتج' })
   const after = ProductService.list({}).map((p) => `${p.id}:${p.quantity}`).sort().join('|')
   ok('لا يغيّر الكميات', before === after)

@@ -13,6 +13,9 @@ export default function BarcodePrintPage() {
   const [copies, setCopies] = useState('1')
   const [preparing, setPreparing] = useState(false)
   const [printItems, setPrintItems] = useState(null)
+  // The QR on the label must point at an address the phone can actually reach,
+  // so the printed origin is chosen here rather than guessed by the server.
+  const [origin, setOrigin] = useState('')
 
   useEffect(() => {
     let active = true
@@ -24,6 +27,12 @@ export default function BarcodePrintPage() {
       .catch((err) => {
         if (active) setError(err.message)
       })
+    api
+      .get('/api/system')
+      .then((data) => {
+        if (active && data.origin) setOrigin(data.origin)
+      })
+      .catch(() => {})
     return () => {
       active = false
     }
@@ -76,7 +85,10 @@ export default function BarcodePrintPage() {
     }
     setPreparing(true)
     try {
-      await api.post('/api/barcodes/ensure', { barcodes: chosen.map((p) => p.barcode) })
+      await api.post('/api/barcodes/ensure', {
+        barcodes: chosen.map((p) => p.barcode),
+        linkBase: origin,
+      })
       const items = []
       for (const p of chosen) {
         for (let i = 0; i < copiesNum; i += 1) items.push(p)
@@ -184,7 +196,18 @@ export default function BarcodePrintPage() {
               {printItems.map((p, i) => (
                 <div className="barcode-tag" key={`${p.id}-${i}`}>
                   <div className="barcode-tag-name">{p.name}</div>
-                  <img src={`/barcodes/${p.barcode}.png`} alt={`باركود ${p.name}`} />
+                  <div className="barcode-tag-symbols">
+                    <img
+                      className="barcode-tag-code128"
+                      src={`/barcodes/${p.barcode}.png`}
+                      alt={`باركود ${p.name}`}
+                    />
+                    <img
+                      className="barcode-tag-qr"
+                      src={`/barcodes/${p.barcode}-qr.png`}
+                      alt={`رمز QR للمنتج ${p.name}`}
+                    />
+                  </div>
                   <div className="barcode-tag-code">{p.barcode}</div>
                 </div>
               ))}

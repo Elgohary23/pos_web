@@ -60,7 +60,9 @@ Layered structure:
 | `/api/sales-invoices/:id` | `requireAuth` + `requireAdmin` | GET full sale details (header + line items incl. cost snapshot) |
 | `/api/transactions` | `requireAuth` + `requireAdmin` | GET `?date=YYYY-MM-DD` → daily log pre-grouped for two views (shift + account), with out-of-hours classification |
 | `/api/transactions/:id` | `requireAuth` + `requireAdmin` | GET → full invoice details (header + snapshot items), resolves both supply and sale invoices |
-| `/api/system` | `requireAuth` | GET → `{ port, hostname, addresses[] }` of the host (powers the Home-page «الدخول من الموبايل» card) |
+| `/api/barcodes/ensure` | `requireAuth` + `requireAdmin` | POST `{ barcodes[], linkBase? }` → generates `<code>.png` (Code128) **and** `<code>-qr.png` (deep-link QR) |
+| `/api/barcodes/qr.png` | `requireAuth` + `requireAdmin` | GET `?text=<http(s) url>` → PNG QR of an arbitrary LAN URL (Home-page enrolment code) |
+| `/api/system` | `requireAuth` | GET → `{ port, hostname, addresses[], origin }` of the host (powers the Home-page «الدخول من الموبايل» card) |
 
 ### Supply/return invoice business rules
 - Single endpoint `POST /api/supply-invoices`. Body `kind`: `'supply'` or `'return'`.
@@ -103,6 +105,7 @@ Layered structure:
 | `/supply-invoice` | ProtectedRoute | SupplyInvoicePage |
 | `/sales-invoice` | ProtectedRoute | SalesInvoicePage (has a QR/barcode scan button) |
 | `/product-lookup` | ProtectedRoute | ProductLookupPage (price lookup; admin **and** employee, `F6`) |
+| `/l/:code` | ProtectedRoute | ProductLinkPage (opened by the phone's own camera; see "Scanning from a phone") |
 | `/employees` | ProtectedRoute + AdminRoute | Employees |
 | `/categories` | ProtectedRoute + AdminRoute | Categories |
 | `/products` | ProtectedRoute + AdminRoute | Products |
@@ -113,13 +116,25 @@ Layered structure:
 All decoding happens **in the browser** — images are never uploaded to the server. Two entry points: a scan button on `ProductLookupPage` (`/product-lookup`) and one on `SalesInvoicePage`. In the sales invoice a scan only **selects** the product, fills its retail price and focuses the quantity field — the cashier still presses إضافة.
 
 - **Payload = `products.barcode`.** A scan is resolved by exact barcode; the text search (`?q=`) is the fallback for partial names.
-- **Camera needs a secure context** — `localhost` or HTTPS. Reaching the shop PC over its LAN IP from a phone is *insecure*, so the browser blocks the camera there; the dialog says so and the **upload-image tab is the working fallback on phones**. No HTTPS cert is shipped yet.
-- **Do not replace the two-decoder file path with a single one.** `html5-qrcode`'s `scanFile()` reads **1D barcodes only** and silently fails on every QR image (verified: valid 21×21 QR → `NotFoundException`). ZXing's own QR *detector* is also unreliable on real-world images even though it reads Code128 fine. So the upload path runs **ZXing `BrowserMultiFormatReader` first (all 1D barcodes), then `jsQR` (QR)**. Verified working for QR (incl. inverted / no quiet zone) and Code128/EAN.
-- Images are flattened onto **white** before analysis: transparent PNGs (alpha read as black) break detection.
-- `Html5Qrcode.clear()` is **synchronous** — never `.catch()` it.
-- The reader `<div>` stays mounted in both tabs (hidden via `.qr-reader-hidden`); the camera panel around it is conditional. Unmounting it mid-startup is what produces a benign `play() ... interrupted` unhandled rejection in the console.
+- **Every scan result is normalised first** by `extractScanCode()` — `client/src/utils/scanCode.js` and its mirror `server/utils/scanCode.js` (keep the two in sync). It accepts a bare code **or** a deep-link URL (`/l/CODE`, `?code=CODE`, `kasabi://product/CODE`) and returns `''` for anything else, so a whole URL is never used as a query. `QrScannerDialog.deliver()` applies it, so consumers only ever see a bare barcode.
+- **Camera needs a secure context** — `localhost` or HTTPS. Reaching the shop PC over its LAN IP from a phone is *insecure*, so the browser blocks the camera there; the dialog says so and the **upload-image tab is the working fallback on phones**. For a live camera on a phone use the deep link below — no HTTPS cert is shipped.
+- **Do not replace the two-decoder file path with a single one.** `html5-qrcode`'s `scanFile()` reads **1D barcodes only** and silently fails on every QR image (verified: valid 21×21 QR → `NotFoundException`). ZXing's own QR *detector* is also unreliable on real-world images even though it reads Code128 fine. So the upload path runs **ZXing `BrowserMultiFormatReader` first (all 1D barcodes), then `jsQR` (QR)**. Verified working for QR (incl. inverted / no quiet zone) and Code128. **EAN was never actually tested** — do not claim it.
+- Images are flattened onto **white** before analysis: transparent PNGs (alpha read as black) break detection. Note this did **not** by itself make ZXing read a `bwip-js` QR — that is what `jsQR` is for.
+- `Html5Qrcode.clear()` is **synchronous** — never `.catch()` it. It is also what emits the benign `play() ... interrupted` unhandled rejection when switching camera→upload fast; keeping the reader mounted does **not** prevent it, and it cannot be caught from outside the library. Accept it, don't chase it.
+- The reader `<div>` stays mounted in both tabs (hidden via `.qr-reader-hidden`); the camera panel around it is conditional.
 - Libraries are **dynamic imports** (`html5-qrcode`, `@zxing/library`, `jsqr`) so they build as separate chunks and stay out of the main bundle.
 - The reader element id is unique per dialog instance (`dialogSeq`) because the libraries locate elements by id.
+
+## Scanning from a phone (deep links, no HTTPS)
+`getUserMedia` is blocked on any insecure origin other than `localhost`, and **a certificate cannot be bundled into the installer to fix it** — the PC's trust store is irrelevant to the phone, and iOS/Android both demand explicit user confirmation before accepting a new root CA. So the phone path deliberately uses **plain HTTP + the phone's own camera app**, which needs no secure context and no permission prompt.
+
+- A printed label carries **two symbols**: the Code128 (`<code>.png`, raw barcode — read by the desktop scanner) and a QR (`<code>-qr.png`, the deep link `http://<lan>:<port>/l/<code>` — read by the phone's camera, which opens the browser on it). Both resolve to the same product via `extractScanCode()`.
+- `BarcodeService.deepLink(code, linkBase)` builds it; `ensurePng` regenerates the QR whenever `linkBase` changes, tracked by a `<code>-qr.stamp` file, so a re-IP never leaves a dead label. `POST /api/barcodes/ensure` takes `{ barcodes, linkBase }` (validated to `http(s)://host[:port]`, defaults to `SystemService.origin()`).
+- `SystemService.info()` exposes `origin` (first LAN IPv4 + port) and `addresses`. The Home page renders a QR of `origin` (`GET /api/barcodes/qr.png?text=…`, admin-only, http(s) URLs only) so a phone can be enrolled once without typing an IP.
+- `ProductLinkPage` (`/l/:code`) shows name/price/stock and a **بيع هذا المنتج** button that navigates to `/sales-invoice?code=…`; `SalesInvoicePage` consumes that param, prefills the product, then strips it from the URL so returning to the page doesn't re-trigger the lookup.
+- Re-scanning the same label leaves the phone on an identical URL, so the page never remounts — it refetches on `visibilitychange` instead.
+- `/l/:code` is inside `ProtectedRoute`; unauthenticated it bounces to `/login?next=…` and `Login` restores it. `next` is restricted to same-origin paths (no `//`).
+- **Known trade-off: the deep link embeds the LAN IP.** A router DHCP change breaks printed labels — the Home page says so, and the fix is reprinting (or a DHCP reservation).
 
 ## Responsive UI (must-follow)
 **Never finish a UI page/view/component without confirming it is responsive.** The product ships on phones/tablets too; a page that crops on mobile is a bug, not a TODO.
@@ -142,17 +157,20 @@ All decoding happens **in the browser** — images are never uploaded to the ser
 Standalone Playwright tooling (own `package.json`, chromium installed). Requires **both** servers running first: server `npm start` (:3000) then client `npm run dev` (:5173). All scripts auto-login with `admin/admin` and set `localStorage['skipPwChangeDialog']=1` (the app's own dialog-suppression flag — do not change the DB password to dodge it).
 
 - `node take-screenshots.mjs` (or `npm run snapshot`) → screenshots for every page × mobile/tablet/desktop into `~/Downloads/screenshots/<timestamp>/`. Timestamped folder + `<name>-<viewport>-<W>x<H>.png` filenames mean runs never overwrite.
-- `node check-responsive.mjs` → 55 overflow checks (5 viewports × 11 pages); **exits 1 if any page overflows horizontally**. Run after ANY UI change.
+- `node check-responsive.mjs` → 60 overflow checks (5 viewports × 12 pages); **exits 1 if any page overflows horizontally**. Run after ANY UI change.
 - `node check-modals.mjs` → verifies every modal fits inside the 375px viewport, including the QR scanner (camera tab + upload tab) and the scan button in the sales invoice. Launches Chromium with a fake camera device so the camera path is really exercised.
 - `node check-table-cards.mjs` → verifies `.data-table-cards` actually renders (header hidden, labels shown, full-width buttons).
+- **All of these talk to whatever `/api` the Vite proxy points at.** If a Windows service (e.g. an installed KasabiPOS) already owns port 3000, they hit *its* database and `check-table-cards` fails on an empty `/products`. Either stop the service or run the dev server on a free port and re-point `client/vite.config.js`; do not "fix" it by editing the check.
 - Images go to the OS Downloads dir — never committed. Playwright browsers live in `ms-playwright` cache (outside repo).
 
 ## Testing
-- Three test suites (run from `server/`):
+- Five test suites (run from `server/`):
   - `server/tests/supply.test.mjs` → `npm run test:supply` — supply/return creation, price overwrite, insufficient stock, audit, validation.
   - `server/tests/transactionLog.test.mjs` → `npm run test:transactions` — snapshot capture, daily shift/out-of-hours grouping (incl. overnight shifts), account view, invoice details, date/id validation.
   - `server/tests/salesInvoice.test.mjs` → `npm run test:sales` — sale totals/discounts, price snapshot, stock decrease (+ service no-deduct), insufficient-stock rollback, employee variable-discount restriction, free invoice, cash sale, customer get_or_create, transaction-log integration, sale detail view.
-- All three are self-contained: create a temp DB in `os.tmpdir()`, run all migrations, clean up DB + generated barcode PNGs on exit. Safe to run anytime.
+  - `server/tests/backup.test.mjs` → `npm run test:backup` — DB backup/restore.
+  - `server/tests/productLookup.test.mjs` → `npm run test:products` — exact barcode filter, partial search, filter combination, input validation, and `extractScanCode()` turning deep-link URLs into bare codes.
+- All of them are self-contained: they create a temp DB in `os.tmpdir()`, run all migrations, and clean up on exit (the barcode tests must also remove only the PNGs they generated — see `barcodesDir` in `salesInvoice.test.mjs`). Safe to run anytime.
 - To add a new test file: follow the same pattern (set `process.env.DB_PATH` to a temp path before importing `db.js`, clean up at end).
 
 ## Windows service installer (`package/`)

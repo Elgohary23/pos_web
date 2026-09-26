@@ -24,7 +24,16 @@ export default function Home() {
       {info && info.addresses?.length > 0 && (
         <div className="lan-card">
           <h3>الدخول من الموبايل</h3>
-          <p>أصل الجهاز والموبايل بنفس الشبكة ثم افتح المتصفح على أحد الروابط:</p>
+          <p>
+            امسح الرمز بكاميرا الموبايل مباشرة — يفتح النظام في المتصفح فورًا. افتحه مرة واحدة
+            وضيف الصفحة للشاشة الرئيسية، بعد كده بتفتح النظام بضغطة واحدة.
+          </p>
+          <img
+            className="lan-qr"
+            src={`/api/barcodes/qr.png?text=${encodeURIComponent(info.origin)}`}
+            alt="رمز الدخول من الموبايل"
+          />
+          <p>أو افتح المتصفح على أحد الروابط:</p>
           <ul>
             {info.addresses.map((ip) => (
               <li key={ip}>
@@ -34,6 +43,10 @@ export default function Home() {
               </li>
             ))}
           </ul>
+          <p className="muted">
+            ملاحظة: لو غيّر الراوتر رقم الجهاز، الروابط والباركود المطبوع هيتغيروا — اطبع الملصقات
+            من جديد.
+          </p>
         </div>
       )}
     </div>

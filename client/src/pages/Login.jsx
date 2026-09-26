@@ -1,10 +1,18 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+
+// Only same-origin paths are honoured, so a crafted ?next= cannot bounce the
+// cashier to an external site after logging in.
+function safeNext(value) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/'
+  return value
+}
 
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -16,7 +24,7 @@ export default function Login() {
     setBusy(true)
     try {
       await login(username.trim(), password)
-      navigate('/', { replace: true })
+      navigate(safeNext(params.get('next')), { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {
