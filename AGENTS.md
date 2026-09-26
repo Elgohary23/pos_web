@@ -8,7 +8,7 @@ POS (cashier) system. Two **independent npm packages** — no root `package.json
 ## Commands (run inside each package folder — there is no root script)
 - Client: `npm run dev` (Vite :5173), `npm run build`, `npm run preview`.
 - Server: `npm run dev` (uses `node --watch index.js`), `npm start` (:3000), `npm run test:supply` (runs `tests/supply.test.mjs` with a temp DB — safe, auto-cleans), `npm run test:transactions` (runs `tests/transactionLog.test.mjs` — same pattern).
-- Installer build (from repo root): `powershell -ExecutionPolicy Bypass -File package\build.ps1 [-SkipClientBuild] [-SkipInnoInstall] [-Port 3000] [-Version 1.0.0]` → produces `package\dist\KasabiPOS-Setup-<version>.exe`. Downloads + silently installs Inno Setup 6 into `package\cache\` on first run (internet needed). See "Windows service installer" below.
+- Installer build (from repo root): `powershell -ExecutionPolicy Bypass -File package\build.ps1 [-SkipClientBuild] [-SkipInnoInstall] [-Port 3000] [-Version 1.0.0]` → produces `package\dist\KasabiPOS-Setup-<version>.exe`. Downloads + silently installs Inno Setup 6 into `package\cache\` on first run (internet needed). **`-Version` must change for every customer update** or Inno treats it as the same build. Human-facing build/release checklist lives in `BUILDING.md`. See "Windows service installer" below.
 - **No lint/typecheck configs exist yet.** Scaffold one (ESLint) when a feature warrants it — never assume a script exists.
 - Windows gotcha: when spawning npm programmatically from PowerShell use `npm.cmd`, not `npm` (`Start-Process npm` fails). Repo root path contains Arabic characters — always `-LiteralPath` + quoted paths.
 
