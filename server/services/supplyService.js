@@ -203,7 +203,7 @@ export const SupplyService = {
     const { invoiceId, grandTotal } = tx()
 
     const newProductsWithUrls = await Promise.all(
-      newProducts.map(async (p) => ({ ...p, barcode_url: await BarcodeService.generatePng(p.barcode) }))
+      newProducts.map(async (p) => ({ ...p, barcode_url: await BarcodeService.ensurePng(p.barcode) }))
     )
 
     return {

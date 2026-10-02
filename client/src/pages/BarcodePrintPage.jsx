@@ -11,10 +11,10 @@ export default function BarcodePrintPage() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(() => new Set())
   const [copies, setCopies] = useState('1')
+  const [format, setFormat] = useState('barcode_only') // 'barcode_only' | 'barcode_and_qr' | 'qr_only'
+  const [showPrice, setShowPrice] = useState(true)
   const [preparing, setPreparing] = useState(false)
   const [printItems, setPrintItems] = useState(null)
-  // The QR on the label must point at an address the phone can actually reach,
-  // so the printed origin is chosen here rather than guessed by the server.
   const [origin, setOrigin] = useState('')
 
   useEffect(() => {
@@ -85,10 +85,12 @@ export default function BarcodePrintPage() {
     }
     setPreparing(true)
     try {
-      await api.post('/api/barcodes/ensure', {
-        barcodes: chosen.map((p) => p.barcode),
-        linkBase: origin,
-      })
+      await api
+        .post('/api/barcodes/ensure', {
+          barcodes: chosen.map((p) => p.barcode),
+          linkBase: origin,
+        })
+        .catch(() => {})
       const items = []
       for (const p of chosen) {
         for (let i = 0; i < copiesNum; i += 1) items.push(p)
@@ -120,6 +122,29 @@ export default function BarcodePrintPage() {
         <button type="button" className="btn-secondary" onClick={toggleAll}>
           {allSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
         </button>
+        <div className="barcode-copies">
+          <span className="field-label">نمط الملصق</span>
+          <select
+            className="search-input"
+            value={format}
+            onChange={(e) => setFormat(e.target.value)}
+            style={{ width: 'auto', minWidth: '150px' }}
+          >
+            <option value="barcode_only">باركود فقط (الأنسب)</option>
+            <option value="barcode_and_qr">باركود + رمز QR</option>
+            <option value="qr_only">رمز QR فقط</option>
+          </select>
+        </div>
+        <div className="barcode-copies">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>
+            <input
+              type="checkbox"
+              checked={showPrice}
+              onChange={(e) => setShowPrice(e.target.checked)}
+            />
+            إظهار السعر
+          </label>
+        </div>
         <div className="barcode-copies">
           <span className="field-label">نسخ لكل منتج</span>
           <IntInput value={copies} onChange={setCopies} placeholder="1" />
@@ -154,6 +179,7 @@ export default function BarcodePrintPage() {
                   />
                 </th>
                 <th>المنتج</th>
+                <th>السعر</th>
                 <th>الباركود</th>
               </tr>
             </thead>
@@ -170,6 +196,11 @@ export default function BarcodePrintPage() {
                     />
                   </td>
                   <td data-label="المنتج">{p.name}</td>
+                  <td data-label="السعر">
+                    {p.retail_price !== undefined && p.retail_price !== null
+                      ? `${Number(p.retail_price).toFixed(2)} ج.م`
+                      : '—'}
+                  </td>
                   <td data-label="الباركود" className="barcode-cell">
                     {p.barcode || <span className="muted">لا يوجد باركود</span>}
                   </td>
@@ -194,21 +225,55 @@ export default function BarcodePrintPage() {
             </div>
             <div className="print-sheet">
               {printItems.map((p, i) => (
-                <div className="barcode-tag" key={`${p.id}-${i}`}>
+                <div className={`barcode-tag barcode-tag-${format}`} key={`${p.id}-${i}`}>
                   <div className="barcode-tag-name">{p.name}</div>
-                  <div className="barcode-tag-symbols">
-                    <img
-                      className="barcode-tag-code128"
-                      src={`/barcodes/${p.barcode}.png`}
-                      alt={`باركود ${p.name}`}
-                    />
-                    <img
-                      className="barcode-tag-qr"
-                      src={`/barcodes/${p.barcode}-qr.png`}
-                      alt={`رمز QR للمنتج ${p.name}`}
-                    />
-                  </div>
-                  <div className="barcode-tag-code">{p.barcode}</div>
+                  {showPrice && p.retail_price !== undefined && p.retail_price !== null && (
+                    <div className="barcode-tag-price">{Number(p.retail_price).toFixed(2)} ج.م</div>
+                  )}
+
+                  {format === 'barcode_only' && (
+                    <div className="barcode-tag-symbols">
+                      <img
+                        className="barcode-tag-code128 barcode-tag-full"
+                        src={`/barcodes/${p.barcode}.png`}
+                        alt={`باركود ${p.name}`}
+                      />
+                    </div>
+                  )}
+
+                  {format === 'barcode_and_qr' && (
+                    <div className="barcode-tag-symbols">
+                      <img
+                        className="barcode-tag-code128"
+                        src={`/barcodes/${p.barcode}.png`}
+                        alt={`باركود ${p.name}`}
+                      />
+                      <img
+                        className="barcode-tag-qr"
+                        src={`/barcodes/${p.barcode}-qr.png`}
+                        alt=""
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {format === 'qr_only' && (
+                    <>
+                      <div className="barcode-tag-symbols">
+                        <img
+                          className="barcode-tag-qr barcode-tag-qr-large"
+                          src={`/barcodes/${p.barcode}-qr.png`}
+                          alt=""
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      </div>
+                      <div className="barcode-tag-code">{p.barcode}</div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

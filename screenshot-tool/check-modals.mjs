@@ -30,7 +30,7 @@ async function main() {
 
   const checks = [
     { route: '/employees', action: async () => p.getByRole('button', { name: '+ إضافة موظف' }).click() },
-    { route: '/categories', action: async () => p.getByRole('button', { name: '+ تصنيف رئيسي' }).click() },
+    { route: '/categories', action: async () => p.getByRole('button', { name: /تصنيف رئيسي/ }).first().click() },
     { route: '/products', action: async () => p.getByRole('button', { name: '+ إضافة منتج' }).click() },
     // نافذة المسح: الكاميرا أولًا
     {

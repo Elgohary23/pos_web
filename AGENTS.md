@@ -60,8 +60,8 @@ Layered structure:
 | `/api/sales-invoices/:id` | `requireAuth` + `requireAdmin` | GET full sale details (header + line items incl. cost snapshot) |
 | `/api/transactions` | `requireAuth` + `requireAdmin` | GET `?date=YYYY-MM-DD` → daily log pre-grouped for two views (shift + account), with out-of-hours classification |
 | `/api/transactions/:id` | `requireAuth` + `requireAdmin` | GET → full invoice details (header + snapshot items), resolves both supply and sale invoices |
-| `/api/barcodes/ensure` | `requireAuth` + `requireAdmin` | POST `{ barcodes[], linkBase? }` → generates `<code>.png` (Code128) **and** `<code>-qr.png` (deep-link QR) |
-| `/api/barcodes/qr.png` | `requireAuth` + `requireAdmin` | GET `?text=<http(s) url>` → PNG QR of an arbitrary LAN URL (Home-page enrolment code) |
+| `/api/barcodes/ensure` | `requireAuth` | POST `{ barcodes[], linkBase? }` → generates `<code>.png` (Code128) **and** `<code>-qr.png` (deep-link QR). Any logged-in role (employees need it for the Home enrolment card); the `/barcodes` print page UI stays admin-only |
+| `/api/barcodes/qr.png` | `requireAuth` | GET `?text=<http(s) url>` → PNG QR of an arbitrary LAN URL (Home-page enrolment code, visible to employees too) |
 | `/api/system` | `requireAuth` | GET → `{ port, hostname, addresses[], origin }` of the host (powers the Home-page «الدخول من الموبايل» card) |
 
 ### Supply/return invoice business rules
@@ -95,7 +95,7 @@ Layered structure:
 - Keep existing `components/` `pages/` `context/`; add `hooks/`, `services/` as features grow.
 - Every feature = loading + success + error + empty states.
 - Dashboard is the logged-in layout (Navbar: user+change password+logout, Sidebar, `<Outlet/>`). Add pages as **nested routes** under it in `client/src/App.jsx`.
-- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice, sales-invoice and the product deep link (`/l/:code`) are accessible to all roles; employees/categories/products/transactions are admin-only.
+- Client-side route guards: `ProtectedRoute` (login check), `AdminRoute` (role check). Supply-invoice, sales-invoice and the product deep link (`/l/:code`) are accessible to all roles; employees/categories/products/transactions/barcodes/backup are admin-only.
 
 ### Frontend route map (`App.jsx`)
 | Path | Guard | Component |
@@ -110,6 +110,8 @@ Layered structure:
 | `/products` | ProtectedRoute + AdminRoute | Products |
 | `/transactions` | ProtectedRoute + AdminRoute | TransactionLog (daily log, `?date=YYYY-MM-DD`, shift/account toggle) |
 | `/transactions/:id` | ProtectedRoute + AdminRoute | InvoiceDetail (full invoice + snapshot items, supply or sale) |
+| `/barcodes` | ProtectedRoute + AdminRoute | BarcodePrintPage (label formats: barcode-only / barcode+QR / QR-only, optional price) |
+| `/backup` | ProtectedRoute + AdminRoute | BackupPage |
 
 ## QR / barcode scanning (`client/src/components/QrScannerDialog.jsx`)
 All decoding happens **in the browser** — images are never uploaded to the server. The single entry point is the scan button on `SalesInvoicePage` (`.product-search-row .btn-scan`); a scan only **selects** the product, fills its retail price and focuses the quantity field — the cashier still presses إضافة. (The standalone `ProductLookupPage` at `/product-lookup` and its `F6` shortcut were removed — the phone-facing lookup is `/l/:code` instead.)
@@ -117,8 +119,8 @@ All decoding happens **in the browser** — images are never uploaded to the ser
 - **Payload = `products.barcode`.** A scan is resolved by exact barcode; the text search (`?q=`) is the fallback for partial names.
 - **Every scan result is normalised first** by `extractScanCode()` — `client/src/utils/scanCode.js` and its mirror `server/utils/scanCode.js` (keep the two in sync). It accepts a bare code **or** a deep-link URL (`/l/CODE`, `?code=CODE`, `kasabi://product/CODE`) and returns `''` for anything else, so a whole URL is never used as a query. `QrScannerDialog.deliver()` applies it, so consumers only ever see a bare barcode.
 - **Camera needs a secure context** — `localhost` or HTTPS. Reaching the shop PC over its LAN IP from a phone is *insecure*, so the browser blocks the camera there; the dialog says so and the **upload-image tab is the working fallback on phones**. For a live camera on a phone use the deep link below — no HTTPS cert is shipped.
-- **Do not replace the two-decoder file path with a single one.** `html5-qrcode`'s `scanFile()` reads **1D barcodes only** and silently fails on every QR image (verified: valid 21×21 QR → `NotFoundException`). ZXing's own QR *detector* is also unreliable on real-world images even though it reads Code128 fine. So the upload path runs **ZXing `BrowserMultiFormatReader` first (all 1D barcodes), then `jsQR` (QR)**. Verified working for QR (incl. inverted / no quiet zone) and Code128. **EAN was never actually tested** — do not claim it.
-- Images are flattened onto **white** before analysis: transparent PNGs (alpha read as black) break detection. Note this did **not** by itself make ZXing read a `bwip-js` QR — that is what `jsQR` is for.
+- **Do not replace the two-decoder file path with a single one.** `html5-qrcode`'s `scanFile()` reads **1D barcodes only** and silently fails on every QR image (verified: valid 21×21 QR → `NotFoundException`). ZXing's own QR *detector* is also unreliable on real-world images even though it reads Code128 fine. So the upload path runs **`jsQR` first (QR, `inversionAttempts: 'attemptBoth'`), then ZXing `MultiFormatReader` with `TRY_HARDER` (all 1D barcodes)**. Verified working for QR (incl. inverted / no quiet zone) and Code128. **EAN was never actually tested** — do not claim it.
+- Images are flattened onto **white** before analysis: transparent PNGs (alpha read as black) break detection. Note this did **not** by itself make ZXing read a `bwip-js` QR — that is what `jsQR` is for. Screenshots of printed labels additionally go through **multi-scale retries (1.5x / 2x / 0.75x / 0.5x)** and a **contrast-stretch pass** to survive browser downscaling + anti-aliasing; ZXing tries both `HybridBinarizer` and `GlobalHistogramBinarizer` per pass. The file tab also accepts a **Ctrl+V paste** straight from the clipboard.
 - `Html5Qrcode.clear()` is **synchronous** — never `.catch()` it. It is also what emits the benign `play() ... interrupted` unhandled rejection when switching camera→upload fast; keeping the reader mounted does **not** prevent it, and it cannot be caught from outside the library. Accept it, don't chase it.
 - The reader `<div>` stays mounted in both tabs (hidden via `.qr-reader-hidden`); the camera panel around it is conditional.
 - Libraries are **dynamic imports** (`html5-qrcode`, `@zxing/library`, `jsqr`) so they build as separate chunks and stay out of the main bundle.
@@ -129,7 +131,7 @@ All decoding happens **in the browser** — images are never uploaded to the ser
 
 - A printed label carries **two symbols**: the Code128 (`<code>.png`, raw barcode — read by the desktop scanner) and a QR (`<code>-qr.png`, the deep link `http://<lan>:<port>/l/<code>` — read by the phone's camera, which opens the browser on it). Both resolve to the same product via `extractScanCode()`.
 - `BarcodeService.deepLink(code, linkBase)` builds it; `ensurePng` regenerates the QR whenever `linkBase` changes, tracked by a `<code>-qr.stamp` file, so a re-IP never leaves a dead label. `POST /api/barcodes/ensure` takes `{ barcodes, linkBase }` (validated to `http(s)://host[:port]`, defaults to `SystemService.origin()`).
-- `SystemService.info()` exposes `origin` (first LAN IPv4 + port) and `addresses`. The Home page renders a QR of `origin` (`GET /api/barcodes/qr.png?text=…`, admin-only, http(s) URLs only) so a phone can be enrolled once without typing an IP.
+- `SystemService.info()` exposes `origin` (first LAN IPv4 + port) and `addresses`. The Home page renders a QR of `origin` (`GET /api/barcodes/qr.png?text=…`, any logged-in role, http(s) URLs only) so a phone can be enrolled once without typing an IP. `GET /barcodes/:filename` regenerates a missing PNG on demand but only for barcodes that exist in `products` (anything else falls through to 404, so random hits can't fill the disk).
 - `ProductLinkPage` (`/l/:code`) shows a **بيع هذا المنتج** button that navigates to `/sales-invoice?code=…`; `SalesInvoicePage` consumes that param, prefills the product, then strips it from the URL so returning to the page doesn't re-trigger the lookup.
 - **The page is role-scoped in the UI** (`useAuth().user.role`): `admin` gets image + category + retail price (in the highlighted `.scan-price-block`) + wholesale + cost + stock + barcode, in a `.scan-product-details` list; `employee` gets **only the product name and the retail price**. Name/price and the action buttons are shared by both roles. This is presentation-only hiding — `GET /api/products` still returns every field to any authenticated user, so do not treat the wholesale/cost figures as confidential.
 - Re-scanning the same label leaves the phone on an identical URL, so the page never remounts — it refetches on `visibilitychange` instead.

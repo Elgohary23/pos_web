@@ -17,6 +17,8 @@ import customerRoutes from './routes/customerRoutes.js'
 import backupRoutes from './routes/backupRoutes.js'
 import barcodeRoutes from './routes/barcodeRoutes.js'
 import systemRoutes from './routes/systemRoutes.js'
+import { BarcodeService } from './services/barcodeService.js'
+import { ProductRepository } from './repositories/productRepository.js'
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -65,6 +67,27 @@ app.use(
 
 app.use('/uploads', express.static(uploadsDir))
 app.use('/barcodes', express.static(barcodesDir))
+app.get('/barcodes/:filename', async (req, res, next) => {
+  const { filename } = req.params
+  const matchQr = filename.match(/^([A-Za-z0-9]{1,64})-qr\.png$/)
+  const matchBarcode = filename.match(/^([A-Za-z0-9]{1,64})\.png$/)
+  const code = matchQr?.[1] || matchBarcode?.[1]
+  // Only regenerate images for products that actually exist - otherwise any
+  // visitor could fill the disk with PNGs for arbitrary codes.
+  if (!code || !ProductRepository.findByBarcode(code)) return next()
+  try {
+    if (matchQr) {
+      await BarcodeService.generateQrPng(code)
+    } else {
+      await BarcodeService.generatePng(code)
+    }
+    const filePath = path.join(barcodesDir, filename)
+    if (fs.existsSync(filePath)) return res.sendFile(filePath)
+  } catch {
+    // continue to next handler
+  }
+  next()
+})
 
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
