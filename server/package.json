@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
+    "gen:cert": "node scripts/gen-cert.mjs",
     "test:supply": "node tests/supply.test.mjs",
     "test:transactions": "node tests/transactionLog.test.mjs",
     "test:sales": "node tests/salesInvoice.test.mjs",
@@ -20,6 +21,7 @@
     "decimal.js": "^10.6.0",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "multer": "^2.4.0"
+    "multer": "^2.4.0",
+    "selfsigned": "^5.5.0"
   }
 }

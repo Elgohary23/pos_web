@@ -8,6 +8,10 @@ dist/
 uploads/
 server/public/barcodes/
 server/backups/
+server/certs/
+*.pem
+*.key
+*.crt
 *.pre-restore
 # demo video the user keeps in the repo root — not part of the app
 *.mp4

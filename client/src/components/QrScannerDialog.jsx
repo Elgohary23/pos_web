@@ -475,7 +475,8 @@ export default function QrScannerDialog({ onResult, onClose, title = 'مسح ا�
             {insecure && cameraStatus === 'error' && (
               <div className="qr-hint">
                 عند الدخول من الموبايل عبر عنوان IP الشبكة تكون الصفحة غير آمنة، ولا يسمح المتصفح بتشغيل الكاميرا.
-                استخدم «رفع صورة» أو اكتب الكود يدويًا.
+                استخدم «رفع صورة» أو اكتب الكود يدويًا. للكاميرا اللايف على الموبايل شغّل وضع HTTPS
+                (في server: ‏npm run gen:cert‏ ثم أعد تشغيل السيرفرين وافتح ‏https://LAN-IP:PORT‏).
               </div>
             )}
           </>

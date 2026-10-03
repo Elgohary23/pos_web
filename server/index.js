@@ -2,6 +2,8 @@ import express from 'express'
 import session from 'express-session'
 import connectSqlite3 from 'connect-sqlite3'
 import fs from 'fs'
+import http from 'http'
+import https from 'https'
 import os from 'os'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -126,9 +128,37 @@ const lanAddresses = () =>
     .filter((iface) => iface && iface.family === 'IPv4' && !iface.internal)
     .map((iface) => iface.address)
 
-app.listen(port, host, () => {
-  console.log(`Server running on http://localhost:${port} (bound to ${host})`)
+// HTTPS (opt-in, for phone camera over LAN): if server/certs/key.pem +
+// cert.pem exist (generate with `npm run gen:cert`), serve HTTPS so mobile
+// browsers treat the LAN origin as a secure context and allow getUserMedia.
+// HTTPS=1 forces HTTPS (fails loudly without a cert); HTTPS=0 forces HTTP.
+const defaultKeyPath = path.join(__dirname, 'certs', 'key.pem')
+const defaultCertPath = path.join(__dirname, 'certs', 'cert.pem')
+const keyPath = process.env.SSL_KEY_PATH || defaultKeyPath
+const certPath = process.env.SSL_CERT_PATH || defaultCertPath
+const httpsFlag = (process.env.HTTPS || 'auto').toLowerCase()
+let tls = null
+if (httpsFlag !== '0' && fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+  tls = { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }
+}
+if (httpsFlag === '1' && !tls) {
+  throw new Error(`HTTPS=1 but cert not found (${keyPath}, ${certPath}). Run: npm run gen:cert`)
+}
+const scheme = tls ? 'https' : 'http'
+
+function startServer() {
+  if (tls) {
+    return https.createServer(tls, app)
+  }
+  return http.createServer(app)
+}
+
+startServer().listen(port, host, () => {
+  console.log(`Server running on ${scheme}://localhost:${port} (bound to ${host})`)
   for (const address of [...new Set(lanAddresses())]) {
-    console.log(`LAN: http://${address}:${port}`)
+    console.log(`LAN: ${scheme}://${address}:${port}`)
+  }
+  if (!tls) {
+    console.log('HTTP mode: phone camera (getUserMedia) is blocked on LAN IPs - run npm run gen:cert for HTTPS.')
   }
 })
